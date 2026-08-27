@@ -5,3 +5,6 @@
 
 # chore fingerprint cache (sources:/generates: checksums). Derived data.
 .chore/
+
+# chore build output
+/dist/

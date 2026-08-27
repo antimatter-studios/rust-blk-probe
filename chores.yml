@@ -33,10 +33,14 @@ vars:
 
 tasks:
   binary:
-    desc: Build the universal arm64+x86_64 CLI binary and place it in OUT
-    args: [out]
+    desc: Build the universal arm64+x86_64 CLI binary into this crate's dist/
+    # NO `out` ARGUMENT, deliberately. A library does not write into its
+    # consumer. It builds into its own dist/ and a consumer asks where that
+    # is — `chore artifact` prints the path. Inverting it that way means this
+    # crate can change its output layout without every consumer knowing, and
+    # it stays independently usable with no consumer at all.
     vars:
-      OUT: '{{.OUT | default "dist"}}'
+      OUT: 'dist'
 
     # These patterns are LITERAL on purpose. chore records a fingerprint by
     # calling fingerprint.Save WITHOUT a renderer (internal/run/run.go:313),
@@ -105,3 +109,20 @@ tasks:
   clean:
     desc: Remove this crate's cargo output
     cmds: ['cargo clean']
+
+  artifact:
+    desc: Print the absolute path of the built binary (build it first if needed)
+    # `silent: true` is what makes this usable as a VALUE — without it chore
+    # echoes each command and a caller capturing stdout gets the echo too.
+    # PATTERNS.md: "a value — a flag string, a container status, a path" is a
+    # task called through {{.CHORE_EXE}}.
+    silent: true
+    # NO `deps: [binary]`. chore prints "task: binary is up to date" on STDOUT,
+    # which a caller capturing this as a value receives as part of the value —
+    # measured: the capture came back as two lines and `[ -x "$out" ]` failed.
+    # A value-returning task returns a value and does nothing else; the caller
+    # builds first. PATTERNS.md's shape, arrived at the hard way.
+    cmds:
+      - 'cd "{{.OUT}}" && pwd -P | tr -d "\n"; printf "/diskprobe\n"'
+    vars:
+      OUT: 'dist'
