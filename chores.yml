@@ -1,0 +1,107 @@
+version: "3"
+chore_min_version: 0.6.0
+
+# THE CONTRACT THIS FILE EXISTS TO OWN.
+#
+# How to build diskprobe is knowledge that belongs to diskprobe. It used to
+# live in diskjockey/scripts/build-disk-probe.sh, which knew the two target
+# triples, the cargo profile, where cargo puts things, and how to lipo them
+# together. None of that is a consumer's business.
+#
+# THE TASK IS `binary`, NOT `staticlib`, AND THE DIFFERENCE IS NOT COSMETIC.
+# Every sibling library here (rust-fs-*, rust-img-*, rust-partitions) exposes
+# `staticlib <out>` and leaves an archive plus headers for a consumer to link.
+# This crate produces no archive and no headers. It produces one executable
+# that the host app shells out to as a child process. A task called
+# `staticlib` would be promising an artifact that does not exist.
+#
+# THE BINARY IS NAMED diskprobe AND MUST STAY THAT WAY. DiskJockey stages it
+# by that name and invokes it by that name — FSKitMountService.swift mirrors
+# its JSON shape and locates `lib/diskprobe/diskprobe`, AgentImpl.swift runs
+# it as a Process, SwiftPartitionProbe.swift falls back to it for container
+# formats. Renaming the [[bin]] breaks the app silently: the build succeeds
+# and the app reports "diskprobe binary not found".
+#
+# THE OUTPUT IS UNIVERSAL arm64 + x86_64, preserved from the script it
+# replaces. It is a single lipo'd file, not two.
+vars:
+  ARM_TRIPLE: aarch64-apple-darwin
+  X86_TRIPLE: x86_64-apple-darwin
+  # `[package].name` and `[[bin]].name` are both diskprobe, so cargo writes
+  # target/<triple>/release/diskprobe. See the note above before changing it.
+  BINNAME: diskprobe
+
+tasks:
+  binary:
+    desc: Build the universal arm64+x86_64 CLI binary and place it in OUT
+    args: [out]
+    vars:
+      OUT: '{{.OUT | default "dist"}}'
+
+    # These patterns are LITERAL on purpose. chore records a fingerprint by
+    # calling fingerprint.Save WITHOUT a renderer (internal/run/run.go:313),
+    # so a pattern containing {{ }} is expanded against the raw text, matches
+    # nothing, and stores the empty-set hash — the task then never registers
+    # as up to date.
+    #
+    # THE SIX SIBLING MANIFESTS ARE SOURCES OF OURS, and this is the one place
+    # this file differs from its siblings' `staticlib`. Everything this binary
+    # does lives in those crates: it links am-fs-core, four am-img-* container
+    # readers and am-partitions, all by `path = "../rust-*"`. A version bump
+    # in any of them changes that crate's Cargo.toml, and without these lines
+    # the fingerprint would still match and diskjockey would keep staging a
+    # binary built against the old code.
+    #
+    # THE GAP THAT LEAVES, said out loud: a change to a sibling's `src/` that
+    # does NOT bump its version is invisible here. Exact paths are used rather
+    # than '../rust-*/src/**/*.rs' because an exact path is the form proven to
+    # work across `..` in this project (rust-fs-ext4 ships fs_core.h the same
+    # way); a `**` glob across `..` is untested and its failure mode is a
+    # pattern that matches nothing, which silently widens the gap instead of
+    # closing it. If you can test one, close the gap.
+    sources:
+      - Cargo.toml
+      - Cargo.lock
+      - 'src/**/*.rs'
+      - '../rust-fs-core/Cargo.toml'
+      - '../rust-img-qcow2/Cargo.toml'
+      - '../rust-img-vhd/Cargo.toml'
+      - '../rust-img-vhdx/Cargo.toml'
+      - '../rust-img-vmdk/Cargo.toml'
+      - '../rust-partitions/Cargo.toml'
+
+    # Templated, which is fine here where it is not fine above: the check
+    # renders these before expanding them, and this is an exact path rather
+    # than a glob, so a missing artifact is caught by the pattern failing to
+    # match.
+    generates:
+      - '{{.OUT}}/{{.BINNAME}}'
+
+    cmds:
+      # Idempotent, and it replaces the consumer having to know the triples:
+      # rustup answers "up to date" without touching the network when the
+      # target is already installed. It runs here because the triples are ours.
+      - 'rustup target add {{.ARM_TRIPLE}}'
+      - 'rustup target add {{.X86_TRIPLE}}'
+      - 'cargo build --release --target {{.ARM_TRIPLE}}'
+      - 'cargo build --release --target {{.X86_TRIPLE}}'
+      - 'mkdir -p "{{.OUT}}"'
+      - >-
+        lipo -create
+        "target/{{.ARM_TRIPLE}}/release/{{.BINNAME}}"
+        "target/{{.X86_TRIPLE}}/release/{{.BINNAME}}"
+        -output "{{.OUT}}/{{.BINNAME}}"
+      - 'chmod +x "{{.OUT}}/{{.BINNAME}}"'
+      - 'lipo -info "{{.OUT}}/{{.BINNAME}}"'
+
+  build:
+    desc: Debug build
+    cmds: ['cargo build']
+
+  test:
+    desc: Test suite
+    cmds: ['cargo test']
+
+  clean:
+    desc: Remove this crate's cargo output
+    cmds: ['cargo clean']

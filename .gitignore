@@ -1,1 +1,7 @@
 /target/
+
+# macOS
+.DS_Store
+
+# chore fingerprint cache (sources:/generates: checksums). Derived data.
+.chore/
