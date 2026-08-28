@@ -37,7 +37,12 @@ Exit codes:
 | 0 | JSON written to stdout |
 | 1 | argument / option error |
 | 2 | file open / container layer error |
-| 3 | partition probe error |
+| 3 | partition probe error — the table could not be read |
+
+A disk with **no** partition table is not exit 3. That is a normal answer,
+described below, and it exits 0. Exit 3 is the opposite case: a table is
+there and `diskprobe` could not read it — a CRC mismatch, a truncated
+table, an I/O failure — and nothing is written to stdout.
 
 ## Output
 
@@ -61,9 +66,31 @@ Exit codes:
 }
 ```
 
+`fs_kind` is one of `ext2`, `ext3`, `ext4`, `ntfs`, `fat32`, `fat16`,
+`exfat`, `hfs_plus`, `apfs`, `linux_swap`, `iso9660`, `squashfs`, `unknown`
+or `error`.
+
 A whole-device filesystem with no partition table reports `"table": "none"`,
 an empty `partitions` array, and a `device_fs_kind` field naming what was
 sniffed at offset 0.
+
+### When a filesystem sniff fails
+
+`unknown` means the sniff ran and recognised nothing. A sniff that *failed*
+is reported separately, in-band rather than by exit code, because the rest
+of the document is still true — the partition table was read, the other
+partitions are described correctly, and throwing that away over one
+unreadable partition would help nobody. The affected entry carries
+`"fs_kind": "error"` and an `"fs_kind_error"` field holding the reason, and
+the reason is also written to stderr:
+
+```json
+{ "index": 1, "fs_kind": "error", "fs_kind_error": "read failed at offset 1048576" }
+```
+
+The whole-device equivalents are `device_fs_kind` and `device_fs_error`.
+Consumers switching on `fs_kind` should treat `error` as "ask again", not
+as "no filesystem here".
 
 ## Building
 
