@@ -159,6 +159,28 @@ fn auto_detect_container(path: &str) -> std::io::Result<Container> {
     Ok(Container::Raw)
 }
 
+// `FsCoreDevice` is an opaque handle: allocated by a sister crate's
+// constructor, passed straight back to it, and never dereferenced on
+// this side. Rust cannot see that from the signature — it sees a type
+// without `#[repr(C)]` crossing an FFI boundary and warns, sixteen
+// times, once per declaration.
+//
+// The allow is scoped to this block rather than the crate, so a
+// genuinely unsafe type appearing in some OTHER extern block is still
+// reported.
+//
+// This is a local workaround for something better fixed upstream:
+// `#[repr(C)]` on `FsCoreDevice` in rust-fs-core would silence it for
+// every consumer at once and is the honest description of a handle that
+// only ever crosses as a pointer. It is not done here because that
+// crate is a dependency of seven others and the change belongs with its
+// owner.
+//
+// Until then this crate could not adopt its family's lint gate at all:
+// `cargo clippy --locked --all-targets -- -D warnings` promoted these
+// sixteen warnings into sixteen hard errors, so "no CI, no lint task"
+// was a consequence rather than an omission.
+#[allow(improper_ctypes)]
 extern "C" {
     fn qcow2_open_rw_on_device(inner: *mut FsCoreDevice) -> *mut FsCoreDevice;
     fn qcow2_open_on_device(inner: *mut FsCoreDevice) -> *mut FsCoreDevice;

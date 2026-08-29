@@ -102,6 +102,16 @@ tasks:
     desc: Debug build
     cmds: ['cargo build']
 
+  lint:
+    desc: Formatting and clippy, exactly as CI runs them
+    # The same two commands every sibling's `lint` runs. This crate
+    # could not have this task until the sixteen `improper_ctypes`
+    # warnings on the opaque FsCoreDevice handle were scoped away —
+    # `-D warnings` turned them into sixteen errors.
+    cmds:
+      - cargo fmt --check
+      - cargo clippy --locked --all-targets -- -D warnings
+
   test:
     desc: Test suite
     cmds: ['cargo test']

@@ -1,0 +1,67 @@
+name: CI
+
+# This crate had no CI at all. It could not have had a working one until
+# now: the family's gate is `clippy --locked --all-targets -- -D warnings`,
+# and sixteen `improper_ctypes` warnings on the opaque FsCoreDevice handle
+# turned that into sixteen hard errors. Scoping an allow to the extern
+# block was the prerequisite, not a tidy-up.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: test / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Six path dependencies, each pinned to a released tag rather than
+      # a branch, so a sibling's main moving cannot change what this
+      # crate was tested against. Matches the versions in Cargo.toml.
+      - name: clone the sibling crates
+        shell: bash
+        run: |
+          set -euo pipefail
+          clone() { git clone --depth 1 --branch "$2" \
+              "https://github.com/antimatter-studios/$1.git" "../$1"; }
+          clone rust-fs-core   v0.2.2
+          clone rust-img-qcow2 v0.4.2
+          clone rust-img-vhd   v0.3.2
+          clone rust-img-vhdx  v0.3.2
+          clone rust-img-vmdk  v0.3.2
+          clone rust-partitions v0.3.3
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+
+      - name: build
+        run: cargo build --locked --all-targets
+      - name: test
+        run: cargo test --locked --all-targets
+      - name: clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+  fmt:
+    name: fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+          components: rustfmt
+      - name: fmt
+        run: cargo fmt --check
