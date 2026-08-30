@@ -97,6 +97,35 @@ const NO_PARTITION_TABLE_MESSAGE: &str = "no GPT or MBR signature found";
 /// distinct from `"unknown"`, which means it ran and recognised nothing.
 const SNIFF_FAILED_LABEL: &str = "error";
 
+/// Signature bytes at offset 0, one per container format.
+///
+/// Three were written as readable ASCII at the call site and the fourth
+/// as four loose hex bytes, which made the qcow2 arm the only one a
+/// reader could not check against the format's documentation by eye.
+///
+/// `QCOW2` is `QFI\xfb` — three printable characters and one that is
+/// not, which is why it resisted the ASCII spelling the others use.
+mod magic {
+    /// qcow2: `Q`, `F`, `I`, 0xfb.
+    pub const QCOW2: &[u8] = b"QFI\xfb";
+    /// VHDX, at offset 0.
+    pub const VHDX: &[u8] = b"vhdxfile";
+    /// VMDK sparse extent header.
+    pub const VMDK: &[u8] = b"KDMV";
+    /// VHD, in the header of a dynamic disk and the footer of any.
+    pub const VHD: &[u8] = b"conectix";
+}
+
+/// Bytes in a VHD footer, and the distance back from the end of a fixed
+/// image at which it starts.
+///
+/// The literal `512` appeared for this and for nothing else in the
+/// probe — but it reads like a sector size, which it is not: a footer is
+/// 512 bytes because the VHD format says so, and it would stay 512 on a
+/// 4Kn device.
+const VHD_FOOTER_SIZE: u64 = 512;
+
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Container {
     Raw,
@@ -193,24 +222,22 @@ fn auto_detect_container(path: &str) -> std::io::Result<Container> {
     let mut f = std::fs::File::open(path)?;
     let mut head = [0u8; 16];
     let n = read_up_to(&mut f, &mut head)?;
-    if n >= 4 && head[0] == 0x51 && head[1] == 0x46 && head[2] == 0x49 && head[3] == 0xfb {
-        return Ok(Container::Qcow2);
-    }
-    if n >= 8 && &head[..8] == b"vhdxfile" {
-        return Ok(Container::Vhdx);
-    }
-    if n >= 4 && &head[..4] == b"KDMV" {
-        return Ok(Container::Vmdk);
-    }
-    if n >= 8 && &head[..8] == b"conectix" {
-        return Ok(Container::Vhd);
+    for (sig, kind) in [
+        (magic::QCOW2, Container::Qcow2),
+        (magic::VHDX, Container::Vhdx),
+        (magic::VMDK, Container::Vmdk),
+        (magic::VHD, Container::Vhd),
+    ] {
+        if n >= sig.len() && &head[..sig.len()] == sig {
+            return Ok(kind);
+        }
     }
     // Fixed VHD: footer at file_size - 512.
     let len = f.metadata()?.len();
-    if len >= 512 {
-        f.seek(SeekFrom::Start(len - 512))?;
+    if len >= VHD_FOOTER_SIZE {
+        f.seek(SeekFrom::Start(len - VHD_FOOTER_SIZE))?;
         let mut footer = [0u8; 8];
-        if read_up_to(&mut f, &mut footer)? == 8 && &footer == b"conectix" {
+        if read_up_to(&mut f, &mut footer)? == footer.len() && footer == magic::VHD {
             return Ok(Container::Vhd);
         }
     }
@@ -386,6 +413,33 @@ fn sniff_outcome(code: i32, detail: impl FnOnce() -> String) -> Result<&'static 
 
 /// Render the `,"<key>":"<reason>"` fragment that accompanies a
 /// `SNIFF_FAILED_LABEL`, or nothing at all when the sniff succeeded.
+/// The four keys every diskprobe document opens with, in the order the
+/// JSON contract in this module's documentation publishes them.
+///
+/// There were two writers, each with its own format string, sharing
+/// `path`, `container`, `container_size_bytes` and `table`. Nothing made
+/// them agree — so renaming a key, or reordering one, was a change a
+/// reader had to remember to make twice, in a document a consumer
+/// parses.
+///
+/// `body` is whatever the caller appends, and must begin with a comma.
+fn json_envelope(
+    path: &str,
+    container: Container,
+    size_bytes: u64,
+    table: &str,
+    body: &str,
+) -> String {
+    format!(
+        "{{\"path\":\"{}\",\"container\":\"{}\",\"container_size_bytes\":{},\"table\":\"{}\"{}}}",
+        json_escape(path),
+        container.label(),
+        size_bytes,
+        table,
+        body,
+    )
+}
+
 fn sniff_error_field(key: &str, detail: Option<&str>) -> String {
     match detail {
         Some(detail) => format!(",\"{}\":\"{}\"", key, json_escape(detail)),
@@ -504,15 +558,12 @@ fn main() {
                     (SNIFF_FAILED_LABEL, Some(detail))
                 }
             };
-            let json = format!(
-                "{{\"path\":\"{}\",\"container\":\"{}\",\"container_size_bytes\":{},\"table\":\"none\",\"device_fs_kind\":\"{}\"{},\"partitions\":[]}}",
-                json_escape(&path),
-                container.label(),
-                dev_size,
+            let body = format!(
+                ",\"device_fs_kind\":\"{}\"{},\"partitions\":[]",
                 dev_fs_label,
                 sniff_error_field("device_fs_error", dev_fs_error.as_deref()),
             );
-            println!("{json}");
+            println!("{}", json_envelope(&path, container, dev_size, "none", &body));
             unsafe { fs_core_device_close(dev) };
             std::process::exit(0);
         }
@@ -577,15 +628,11 @@ fn main() {
         entries.push(entry);
     }
 
-    let json = format!(
-        "{{\"path\":\"{}\",\"container\":\"{}\",\"container_size_bytes\":{},\"table\":\"{}\",\"partitions\":[{}]}}",
-        json_escape(&path),
-        container.label(),
-        dev_size,
-        table_kind_label(table_rc),
-        entries.join(","),
+    let body = format!(",\"partitions\":[{}]", entries.join(","));
+    println!(
+        "{}",
+        json_envelope(&path, container, dev_size, table_kind_label(table_rc), &body)
     );
-    println!("{json}");
 
     unsafe {
         partitions_list_free(list);
@@ -746,6 +793,68 @@ mod tests {
         let mut buf = [0u8; 16];
         let err = read_up_to(&mut r, &mut buf).expect_err("the error must not be swallowed");
         assert_eq!(err.to_string(), "device went away");
+    }
+
+    // ---------------------------------------------------------------
+    // magics, sizes and the JSON envelope
+    // ---------------------------------------------------------------
+
+    /// The four signatures are the bytes the formats define.
+    ///
+    /// Asserted against literal bytes, because the point of naming them
+    /// was that three were readable ASCII and the fourth was four loose
+    /// hex values a reader could not check by eye.
+    #[test]
+    fn the_container_magics_are_the_formats_own_bytes() {
+        assert_eq!(magic::QCOW2, &[0x51, 0x46, 0x49, 0xfb]);
+        assert_eq!(magic::VHDX, b"vhdxfile");
+        assert_eq!(magic::VMDK, b"KDMV");
+        assert_eq!(magic::VHD, b"conectix");
+    }
+
+    /// No signature is a prefix of another.
+    ///
+    /// The probe returns the first match, so a magic that prefixed
+    /// another would shadow it — and the arms are ordered by nothing in
+    /// particular now that they are a list.
+    #[test]
+    fn no_container_magic_shadows_another() {
+        let all = [magic::QCOW2, magic::VHDX, magic::VMDK, magic::VHD];
+        for (i, a) in all.iter().enumerate() {
+            for b in &all[i + 1..] {
+                let n = a.len().min(b.len());
+                assert_ne!(&a[..n], &b[..n], "{a:?} and {b:?} share a prefix");
+            }
+        }
+    }
+
+    /// A VHD footer is 512 bytes because the format says so — not
+    /// because a sector is.
+    #[test]
+    fn the_vhd_footer_size_is_the_formats_and_not_a_sector() {
+        assert_eq!(VHD_FOOTER_SIZE, 512);
+    }
+
+    /// The envelope carries the four keys the contract publishes, in
+    /// order, and escapes the path.
+    #[test]
+    fn the_json_envelope_opens_with_the_contracted_keys() {
+        let out = json_envelope("/a\"b", Container::Qcow2, 4096, "gpt", ",\"partitions\":[]");
+        assert_eq!(
+            out,
+            "{\"path\":\"/a\\\"b\",\"container\":\"qcow2\",\"container_size_bytes\":4096,\"table\":\"gpt\",\"partitions\":[]}"
+        );
+    }
+
+    /// Both callers produce the same opening, which is what having one
+    /// writer is for.
+    #[test]
+    fn both_documents_share_an_opening() {
+        let no_table = json_envelope("/x", Container::Raw, 1, "none", ",\"partitions\":[]");
+        let with_table = json_envelope("/x", Container::Raw, 1, "mbr", ",\"partitions\":[]");
+        let prefix = "{\"path\":\"/x\",\"container\":\"raw\",\"container_size_bytes\":1,\"table\":\"";
+        assert!(no_table.starts_with(prefix), "{no_table}");
+        assert!(with_table.starts_with(prefix), "{with_table}");
     }
 
     // ---------------------------------------------------------------
