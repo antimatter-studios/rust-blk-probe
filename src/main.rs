@@ -52,7 +52,6 @@
 //!   }
 
 use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
 use std::ptr;
 
 use fs_core::ffi::{
@@ -130,6 +129,23 @@ impl Container {
     }
 }
 
+/// Identify the container by signature, trying the strongest evidence
+/// first.
+///
+/// # The order is load-bearing
+///
+/// Steps 1-4 test magics at offset 0 and are mutually exclusive, so
+/// their relative order does not matter. The last two do:
+///
+/// **The trailing-footer VHD check must come after them, and before the
+/// raw fallback.** A fixed VHD is byte-for-byte a raw disk image with a
+/// 512-byte footer glued on the end — offset 0 is ordinary
+/// partition-table data. The footer is therefore the *only* thing
+/// separating a fixed VHD from a raw image, and it is a far weaker
+/// signal than the offset-0 magics: eight bytes at a position that is
+/// payload in every other format. Testing it last among the signatures
+/// lets any strong offset-0 magic win; testing it before `Raw` is what
+/// stops every fixed VHD being reported as raw.
 fn auto_detect_container(path: &str) -> std::io::Result<Container> {
     use std::io::{Read, Seek, SeekFrom};
     let mut f = std::fs::File::open(path)?;
@@ -534,11 +550,6 @@ fn main() {
         fs_core_device_close(dev);
     }
 }
-
-// Suppress unused-import lint when this binary is built without
-// referring to specific types.
-#[allow(dead_code)]
-fn _unused(_a: c_char) {}
 
 #[cfg(test)]
 mod tests {
