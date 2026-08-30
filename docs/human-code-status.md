@@ -112,16 +112,35 @@ exactly why the old form survived: it was right on every machine anyone tried
 it on. Mutation-checked — restoring `read(buf).unwrap_or(0)` fails three of the
 four.
 
-### M2, M3, M7 — magics, sizes and JSON writers — **fixable, not yet done**
+### M2, M3, M7 — magics, sizes and JSON writers — **fixed**
 
-Three magics written as readable ASCII and the fourth as loose hex; `512` for
-two different meanings; two hand-rolled JSON writers sharing four keys and free
-to drift.
+**M2.** Three signatures were readable ASCII at the call site and the fourth was
+four loose hex bytes — so the qcow2 arm was the only one a reader could not check
+against the format's documentation by eye. `mod magic` names all four, and says
+why qcow2 resisted the ASCII spelling: `QFI\xfb` is three printable characters
+and one that is not.
+
+The four `if` arms became a list, and a second test asserts **no signature is a
+prefix of another** — the probe returns the first match, so a prefixing magic
+would shadow the one after it, and the arms no longer have a meaningful order.
+
+**M3.** The bare `512` reads like a sector size and is not one: a VHD footer is
+512 bytes because the format says so, and would stay 512 on a 4Kn device.
+`VHD_FOOTER_SIZE` says that.
+
+**M7.** Two JSON writers, each with its own format string, sharing `path`,
+`container`, `container_size_bytes` and `table`. Nothing made them agree — so
+renaming or reordering a key was a change a reader had to remember to make twice,
+in a document a consumer parses. `json_envelope` writes the four once; each
+caller appends only its own body.
+
+Mutation-checked: a wrong last byte in the qcow2 magic fails 4 tests, a wrong
+footer size 3, and reordering the envelope's keys 4.
 
 ---
 
 ## Verification
 
-35 tests pass, up from 31. `chore lint` clean, and the crate now builds
+40 tests pass, up from 35. `chore lint` clean, and the crate now builds
 with no warnings at all — removing `_unused` removed the reason for the
 `#[allow]`.
