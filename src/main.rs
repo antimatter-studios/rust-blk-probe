@@ -125,7 +125,6 @@ mod magic {
 /// 4Kn device.
 const VHD_FOOTER_SIZE: u64 = 512;
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Container {
     Raw,
@@ -563,7 +562,10 @@ fn main() {
                 dev_fs_label,
                 sniff_error_field("device_fs_error", dev_fs_error.as_deref()),
             );
-            println!("{}", json_envelope(&path, container, dev_size, "none", &body));
+            println!(
+                "{}",
+                json_envelope(&path, container, dev_size, "none", &body)
+            );
             unsafe { fs_core_device_close(dev) };
             std::process::exit(0);
         }
@@ -631,7 +633,13 @@ fn main() {
     let body = format!(",\"partitions\":[{}]", entries.join(","));
     println!(
         "{}",
-        json_envelope(&path, container, dev_size, table_kind_label(table_rc), &body)
+        json_envelope(
+            &path,
+            container,
+            dev_size,
+            table_kind_label(table_rc),
+            &body
+        )
     );
 
     unsafe {
@@ -852,7 +860,8 @@ mod tests {
     fn both_documents_share_an_opening() {
         let no_table = json_envelope("/x", Container::Raw, 1, "none", ",\"partitions\":[]");
         let with_table = json_envelope("/x", Container::Raw, 1, "mbr", ",\"partitions\":[]");
-        let prefix = "{\"path\":\"/x\",\"container\":\"raw\",\"container_size_bytes\":1,\"table\":\"";
+        let prefix =
+            "{\"path\":\"/x\",\"container\":\"raw\",\"container_size_bytes\":1,\"table\":\"";
         assert!(no_table.starts_with(prefix), "{no_table}");
         assert!(with_table.starts_with(prefix), "{with_table}");
     }
