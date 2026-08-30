@@ -82,20 +82,46 @@ The parameter is dead *today*. Whether it is scaffolding for a write mode that
 is coming, or leftovers to delete, is a question about intent — and deleting the
 externs is the harder half to reverse.
 
-### M2, M3, M4, M7 — magics, sizes, short reads and JSON writers — **fixable, not yet done**
+### M4 — short reads were treated as end-of-file — **fixed**
+
+```rust
+let n = f.read(&mut head).unwrap_or(0);
+```
+
+Two things wrong in one line. `unwrap_or(0)` discarded an `io::Error` inside a
+function that already returns `io::Result`, so **an unreadable device and an
+empty file gave the same answer**. And `Read::read` is allowed to return fewer
+bytes than asked for without an error and without being at end of input — a
+short read is not a short file.
+
+The count is then read as a statement about the file. A read returning 4 makes
+the `n >= 8` guards false, so the vhdx and vhd magics become untestable and the
+image falls through to `Raw` — the wrong answer, silently, for a file whose
+first eight bytes say exactly what it is. The footer check at the bottom had the
+same shape with `== 8` standing in for the guard.
+
+`read_up_to` loops until the buffer is full or the source genuinely ends,
+retries `Interrupted` (a signal arrived; nothing is wrong) and propagates
+everything else. A file shorter than the buffer still reports its length rather
+than failing, because a tiny raw image is legitimate — which is why this is not
+`read_exact` with its `UnexpectedEof` mapped back.
+
+Four tests, over a reader that hands back one byte per call and one that fails
+partway. A local regular file fills a 16-byte buffer in a single call, which is
+exactly why the old form survived: it was right on every machine anyone tried
+it on. Mutation-checked — restoring `read(buf).unwrap_or(0)` fails three of the
+four.
+
+### M2, M3, M7 — magics, sizes and JSON writers — **fixable, not yet done**
 
 Three magics written as readable ASCII and the fourth as loose hex; `512` for
-two different meanings; short reads treated as end-of-file; two hand-rolled JSON
-writers sharing four keys and free to drift.
-
-**M4 is the one to do first** — a short read reported as EOF is the same class
-of defect as the squashfs gzip bug, where a truncated input was served as a
-complete one.
+two different meanings; two hand-rolled JSON writers sharing four keys and free
+to drift.
 
 ---
 
 ## Verification
 
-31 tests pass, unchanged in number. `chore lint` clean, and the crate now builds
+35 tests pass, up from 31. `chore lint` clean, and the crate now builds
 with no warnings at all — removing `_unused` removed the reason for the
 `#[allow]`.

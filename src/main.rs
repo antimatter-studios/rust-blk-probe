@@ -129,6 +129,48 @@ impl Container {
     }
 }
 
+/// Read until `buf` is full or the source genuinely ends.
+///
+/// # A short read is not a short file
+///
+/// `Read::read` is allowed to return fewer bytes than asked for without
+/// an error and without being at end of file. One call filling a
+/// 16-byte buffer is what happens with a local regular file on a quiet
+/// machine; it is not what the trait promises, and a pipe, a network
+/// filesystem or a signal makes it false.
+///
+/// [`auto_detect_container`] then reads the count as a statement about
+/// the file. A read that returns 4 makes the `n >= 8` guards false, so
+/// the vhdx and vhd magics become untestable and the image falls
+/// through to `Raw` — the wrong answer, with no diagnostic, for a file
+/// whose first eight bytes say exactly what it is.
+///
+/// # Errors are errors
+///
+/// The previous form was `f.read(&mut head).unwrap_or(0)`, inside a
+/// function that already returns `io::Result`. It threw the error away
+/// and reported the same 0 an empty file gives, so an unreadable device
+/// and an empty one were indistinguishable.
+///
+/// `Interrupted` is the one kind that is retried rather than returned:
+/// it means a signal arrived mid-call, not that anything is wrong.
+///
+/// A file shorter than `buf` is NOT an error — a tiny raw image is
+/// legitimate — which is why this returns a count rather than using
+/// `read_exact` and mapping its `UnexpectedEof` back.
+fn read_up_to<R: std::io::Read>(r: &mut R, buf: &mut [u8]) -> std::io::Result<usize> {
+    let mut filled = 0;
+    while filled < buf.len() {
+        match r.read(&mut buf[filled..]) {
+            Ok(0) => break, // genuine end of input
+            Ok(n) => filled += n,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(filled)
+}
+
 /// Identify the container by signature, trying the strongest evidence
 /// first.
 ///
@@ -147,10 +189,10 @@ impl Container {
 /// lets any strong offset-0 magic win; testing it before `Raw` is what
 /// stops every fixed VHD being reported as raw.
 fn auto_detect_container(path: &str) -> std::io::Result<Container> {
-    use std::io::{Read, Seek, SeekFrom};
+    use std::io::{Seek, SeekFrom};
     let mut f = std::fs::File::open(path)?;
     let mut head = [0u8; 16];
-    let n = f.read(&mut head).unwrap_or(0);
+    let n = read_up_to(&mut f, &mut head)?;
     if n >= 4 && head[0] == 0x51 && head[1] == 0x46 && head[2] == 0x49 && head[3] == 0xfb {
         return Ok(Container::Qcow2);
     }
@@ -168,7 +210,7 @@ fn auto_detect_container(path: &str) -> std::io::Result<Container> {
     if len >= 512 {
         f.seek(SeekFrom::Start(len - 512))?;
         let mut footer = [0u8; 8];
-        if f.read(&mut footer).unwrap_or(0) == 8 && &footer == b"conectix" {
+        if read_up_to(&mut f, &mut footer)? == 8 && &footer == b"conectix" {
             return Ok(Container::Vhd);
         }
     }
@@ -596,6 +638,114 @@ mod tests {
             bytes[at..at + footer.len()].copy_from_slice(footer);
         }
         bytes
+    }
+
+    /// A reader that hands back at most `chunk` bytes per call, the way
+    /// a pipe, a network filesystem or a signal-interrupted read does.
+    ///
+    /// A local regular file usually fills a 16-byte buffer in one call,
+    /// which is exactly why the old single-`read` form survived: it was
+    /// right on the machine anybody tested it on.
+    struct Dribbling<'a> {
+        data: &'a [u8],
+        chunk: usize,
+        /// Number of `read` calls that return `Interrupted` before any
+        /// data is handed over.
+        interruptions: usize,
+    }
+
+    impl std::io::Read for Dribbling<'_> {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            if self.interruptions > 0 {
+                self.interruptions -= 1;
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Interrupted,
+                    "signal",
+                ));
+            }
+            let n = self.chunk.min(buf.len()).min(self.data.len());
+            buf[..n].copy_from_slice(&self.data[..n]);
+            self.data = &self.data[n..];
+            Ok(n)
+        }
+    }
+
+    /// A reader that fails partway through, to prove the error is not
+    /// swallowed.
+    struct FailsAfter(usize);
+
+    impl std::io::Read for FailsAfter {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            if self.0 == 0 {
+                return Err(std::io::Error::other("device went away"));
+            }
+            let n = self.0.min(buf.len());
+            buf[..n].fill(0xAB);
+            self.0 = 0;
+            Ok(n)
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // read_up_to
+    // ---------------------------------------------------------------
+
+    /// The whole point: a source that dribbles still fills the buffer.
+    ///
+    /// With a single `read`, `n` would be 1 here — so the `n >= 8`
+    /// guards go false and a vhdx image is reported as raw.
+    #[test]
+    fn a_dribbling_source_still_fills_the_buffer() {
+        let data = b"vhdxfile________";
+        let mut r = Dribbling {
+            data,
+            chunk: 1,
+            interruptions: 0,
+        };
+        let mut buf = [0u8; 16];
+        assert_eq!(read_up_to(&mut r, &mut buf).unwrap(), 16);
+        assert_eq!(&buf, data);
+    }
+
+    /// A file shorter than the buffer is a legitimate raw image, so it
+    /// reports its length rather than failing.
+    #[test]
+    fn a_short_source_reports_its_length_rather_than_failing() {
+        let data = b"KDMV";
+        let mut r = Dribbling {
+            data,
+            chunk: 16,
+            interruptions: 0,
+        };
+        let mut buf = [0u8; 16];
+        assert_eq!(read_up_to(&mut r, &mut buf).unwrap(), 4);
+        assert_eq!(&buf[..4], data);
+        assert_eq!(&buf[4..], &[0u8; 12], "the tail is left untouched");
+    }
+
+    /// `Interrupted` means a signal arrived, not that anything is wrong.
+    #[test]
+    fn an_interrupted_read_is_retried_rather_than_reported() {
+        let data = b"conectix________";
+        let mut r = Dribbling {
+            data,
+            chunk: 4,
+            interruptions: 3,
+        };
+        let mut buf = [0u8; 16];
+        assert_eq!(read_up_to(&mut r, &mut buf).unwrap(), 16);
+        assert_eq!(&buf, data);
+    }
+
+    /// Every other error propagates. The old `unwrap_or(0)` reported the
+    /// same 0 an empty file gives, so an unreadable device and an empty
+    /// one could not be told apart.
+    #[test]
+    fn a_real_error_propagates_instead_of_reading_as_end_of_input() {
+        let mut r = FailsAfter(4);
+        let mut buf = [0u8; 16];
+        let err = read_up_to(&mut r, &mut buf).expect_err("the error must not be swallowed");
+        assert_eq!(err.to_string(), "device went away");
     }
 
     // ---------------------------------------------------------------
