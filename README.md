@@ -12,9 +12,9 @@ host application runs as a child process.
 ## The name
 
 The **repository** is `rust-blk-probe`. The **crate and the binary** are both
-`diskprobe`, and the binary name is load-bearing: DiskJockey stages it as
-`lib/diskprobe/diskprobe` and invokes it by that name from
-`FSKitMountService`, `AgentImpl` and `SwiftPartitionProbe`. Renaming
+`diskprobe`, and the binary name is load-bearing: a consumer stages it at
+`lib/diskprobe/diskprobe` and invokes it by that name from several call
+sites rather than resolving it on PATH. Renaming
 `[[bin]]` breaks the app without breaking the build — the compile succeeds
 and the app reports *"diskprobe binary not found"* at runtime.
 
@@ -124,8 +124,9 @@ Check them out beside this one.
 
 ## History
 
-Extracted from `antimatter-studios/diskjockey` at `vendor/rust-disk-probe`,
-with the five commits that touched that path preserved.
+Extracted from the application repository that first used it, at
+`vendor/rust-disk-probe`, with the five commits that touched that path
+preserved.
 
 ## Licence
 
