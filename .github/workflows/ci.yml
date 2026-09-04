@@ -34,12 +34,12 @@ jobs:
           set -euo pipefail
           clone() { git clone --depth 1 --branch "$2" \
               "https://github.com/antimatter-studios/$1.git" "../$1"; }
-          clone rust-fs-core   v0.2.3
-          clone rust-img-qcow2 v0.4.3
-          clone rust-img-vhd   v0.3.3
-          clone rust-img-vhdx  v0.3.3
-          clone rust-img-vmdk  v0.3.3
-          clone rust-partitions v0.3.4
+          clone rust-fs-core   v0.2.4
+          clone rust-img-qcow2 v0.4.4
+          clone rust-img-vhd   v0.3.4
+          clone rust-img-vhdx  v0.3.4
+          clone rust-img-vmdk  v0.3.4
+          clone rust-partitions v0.4.0
 
       - uses: dtolnay/rust-toolchain@stable
         with:
