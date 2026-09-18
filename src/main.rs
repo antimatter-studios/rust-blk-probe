@@ -1,9 +1,9 @@
-//! diskprobe — open a disk image (raw or container), walk its partition
+//! blk-probe — open a disk image (raw or container), walk its partition
 //! table, emit JSON describing what's inside.
 //!
 //! Usage:
-//!   diskprobe <path>
-//!   diskprobe <path> --container=qcow2|vhd|vhdx|vmdk
+//!   blk-probe <path>
+//!   blk-probe <path> --container=qcow2|vhd|vhdx|vmdk
 //!
 //! When `--container` is omitted, container kind is auto-detected from
 //! the magic at offset 0 (or the trailing 512-byte footer for fixed
@@ -79,7 +79,7 @@ use vhdx as _;
 #[allow(unused_imports)]
 use vmdk as _;
 
-const USAGE: &str = "usage: diskprobe <path> [--container=qcow2|vhd|vhdx|vmdk]";
+const USAGE: &str = "usage: blk-probe <path> [--container=qcow2|vhd|vhdx|vmdk]";
 
 // The exit-code table, named. It is published in three places — the module
 // doc-comment above, the README, and here — and the point of naming the
@@ -412,7 +412,7 @@ fn sniff_outcome(code: i32, detail: impl FnOnce() -> String) -> Result<&'static 
 
 /// Render the `,"<key>":"<reason>"` fragment that accompanies a
 /// `SNIFF_FAILED_LABEL`, or nothing at all when the sniff succeeded.
-/// The four keys every diskprobe document opens with, in the order the
+/// The four keys every blk-probe document opens with, in the order the
 /// JSON contract in this module's documentation publishes them.
 ///
 /// There were two writers, each with its own format string, sharing
@@ -477,7 +477,7 @@ fn fmt_guid(b: &[u8; 16]) -> String {
 }
 
 fn die(code: i32, msg: &str) -> ! {
-    eprintln!("diskprobe: {msg}");
+    eprintln!("blk-probe: {msg}");
     std::process::exit(code);
 }
 
@@ -553,7 +553,7 @@ fn main() {
             let (dev_fs_label, dev_fs_error) = match sniff_outcome(sniffed, last_error) {
                 Ok(label) => (label, None),
                 Err(detail) => {
-                    eprintln!("diskprobe: whole-device filesystem sniff failed: {detail}");
+                    eprintln!("blk-probe: whole-device filesystem sniff failed: {detail}");
                     (SNIFF_FAILED_LABEL, Some(detail))
                 }
             };
@@ -601,7 +601,7 @@ fn main() {
         let (fs_label, fs_error) = match sniff_outcome(sniffed, last_error) {
             Ok(label) => (label, None),
             Err(detail) => {
-                eprintln!("diskprobe: partition {i}: filesystem sniff failed: {detail}");
+                eprintln!("blk-probe: partition {i}: filesystem sniff failed: {detail}");
                 (SNIFF_FAILED_LABEL, Some(detail))
             }
         };
@@ -667,7 +667,7 @@ mod tests {
     impl TempImage {
         fn new(name: &str, bytes: &[u8]) -> Self {
             let mut path = std::env::temp_dir();
-            path.push(format!("diskprobe-test-{}-{name}", std::process::id()));
+            path.push(format!("blk-probe-test-{}-{name}", std::process::id()));
             std::fs::write(&path, bytes).expect("write temp image");
             TempImage(path)
         }
@@ -1263,7 +1263,7 @@ mod tests {
     #[test]
     fn auto_detect_reports_the_io_error_when_the_file_cannot_be_opened() {
         let mut missing = std::env::temp_dir();
-        missing.push("diskprobe-test-no-such-image");
+        missing.push("blk-probe-test-no-such-image");
         let _ = std::fs::remove_file(&missing);
         let err = auto_detect_container(missing.to_str().unwrap()).unwrap_err();
         assert_eq!(err.kind(), std::io::ErrorKind::NotFound);

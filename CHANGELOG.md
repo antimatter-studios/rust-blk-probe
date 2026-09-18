@@ -1,6 +1,6 @@
 # Changelog
 
-Notable changes to `diskprobe`, newest first. This is a `0.x` crate, so the
+Notable changes to `rust-blk-probe`, newest first. This is a `0.x` crate, so the
 **minor** is the compatibility boundary: a minor bump may break API, a patch
 never does.
 
@@ -18,6 +18,11 @@ crates.io. Everything below is what the first release will contain.
 
 ### Changed
 
+- **The package is `rust-blk-probe` and the binary is `blk-probe`.** Both were
+  `diskprobe`. The package now matches its repository, as every sibling will,
+  and the binary matches the package. **A consumer that stages or runs the
+  binary by name must change with it**: the build writes `dist/blk-probe`, and
+  error output is prefixed `blk-probe:`.
 - **Builds into its own `dist/` and returns that path**, rather than writing
   into whatever consumes it. Where the output lands is this crate's business,
   not its consumer's.

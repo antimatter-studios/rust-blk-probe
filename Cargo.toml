@@ -1,12 +1,12 @@
 [package]
-name = "diskprobe"
+name = "rust-blk-probe"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "CLI: open a disk image (raw or qcow2/vhd/vhdx/vmdk container), probe its partition table, emit JSON."
 
 [[bin]]
-name = "diskprobe"
+name = "blk-probe"
 path = "src/main.rs"
 
 [dependencies]
