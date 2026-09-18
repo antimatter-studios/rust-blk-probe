@@ -1,0 +1,11 @@
+# .github-guard — declarations github-guard reads from the default branch on
+# GitHub. See antimatter-studios/agent-skills, skill github-guard.
+#
+# [checks] required — what branch protection demands before main takes a merge.
+# Every job ci.yml produces is listed, because this repo has no single
+# always-run aggregate gate yet. When one is added, replace these three with it:
+# a gate that `needs:` the others cannot be left behind by a renamed job.
+[checks]
+	required = fmt
+	required = test / ubuntu-latest
+	required = test / macos-latest
