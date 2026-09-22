@@ -1,11 +1,69 @@
 # .github-guard — declarations github-guard reads from the default branch on
 # GitHub. See antimatter-studios/agent-skills, skill github-guard.
-#
+# git-config format: check with `git config -f .github-guard --list`, and
+# double-quote any value containing # or ;.
+
 # [checks] required — what branch protection demands before main takes a merge.
-# Every job ci.yml produces is listed, because this repo has no single
-# always-run aggregate gate yet. When one is added, replace these three with it:
-# a gate that `needs:` the others cannot be left behind by a renamed job.
+#
+#   ci-ok   ci.yml: the one always-run gate. It `needs:` every other job in
+#           that workflow and fails when any of them failed, was cancelled or
+#           was SKIPPED — the `test` matrix (`cargo build`, `cargo test` and
+#           `clippy --locked --all-targets -- -D warnings` on ubuntu-latest
+#           and macos-latest, each against the six sibling crates cloned at
+#           their pinned tags), and `fmt` (`cargo fmt --check`, once, because
+#           it is the same answer on every platform).
+#
+# WHY ONE NAME AND NOT THREE (#18). This file used to declare `fmt`,
+# `test / ubuntu-latest` and `test / macos-latest` — the real check names, and
+# the note here said so and asked for this replacement. Two of those three are
+# legs of ONE matrix, and a leg's check name is derived from its `os` value, so
+# the list drifts the moment the matrix does. #15 is a `clippy -D warnings`
+# failure on aarch64 Linux that neither current target can see; fixing it means
+# an `ubuntu-24.04-arm` leg, which would report `test / ubuntu-24.04-arm` on
+# every pull request and gate nothing at all, because nobody would have edited
+# this file in the same breath. That is the failure the #197 sweep found in five
+# repositories in this constellation.
+#
+# The opposite direction is worse and has also happened here. A required context
+# that no job produces reads to GitHub as permanently PENDING, not failing: with
+# `enforce_admins` on, nothing merges, and there is no red check and no log to
+# point at — only a merge button that never lights up. Renaming the `test` job,
+# or dropping a leg, produces that state silently.
+#
+# `needs: [test, fmt]` names the matrix JOB, not its legs, so both directions
+# close at once: the gate waits on a new leg the moment it exists, and there is
+# no pinned leg name left to rot.
+#
+# AND NOTHING ELSE, which is where this diverges from what rust-img-vhdx#105
+# first proposed and what rust-lzo1x#14 did — both kept the real names declared
+# BESIDE the aggregate. That keeps exactly the drift the aggregate was added to
+# remove, because the leg names are still pinned. rust-fs-xfs#207 settled it the
+# other way and is the reference this repository follows.
+#
+# tests/ci_aggregate_gate.rs holds both halves to it mechanically: every job in
+# ci.yml has to be in `ci-ok`'s `needs`, `ci-ok` has to carry `if: always()`,
+# and this file has to require `ci-ok` and nothing else. Without that test the
+# aggregate can quietly stop watching a job and still report green, which is a
+# worse gate than the pinned list it replaced.
+#
+# THE NAME DOES NOT MOVE WHEN THE JOBS DO, which is why this needs no ordering
+# dance on the CI side: github-guard reads this file from the DEFAULT BRANCH, so
+# a pull request that renames a gating job can never be the one whose protection
+# learns the new name. Requiring the aggregate means the jobs behind it can be
+# renamed, split or replaced wholesale in a single pull request that protection
+# never notices.
+#
+# Only checks that run on `pull_request` may gate, and here that is free:
+# ci.yml is the ONLY workflow in this repository and it carries a bare
+# `pull_request:` trigger, so there is no release-on-tag workflow and no nightly
+# cron to require by accident. (The sibling fs crates have both, and a required
+# check that cannot report on a pull request blocks every merge forever.)
+#
+# The name must match the check-run name GitHub reports, which is the job's
+# `name:` rather than its key — `ci-ok` for both.
+#
+# Third-party reviewers need no mention: github-protect-main.sh filters
+# `select(.app.slug=="github-actions")` on every query it makes, so nothing
+# reporting under another app can enter the required set through this file.
 [checks]
-	required = fmt
-	required = test / ubuntu-latest
-	required = test / macos-latest
+	required = ci-ok

@@ -15,6 +15,16 @@ crates.io. Everything below is what the first release will contain.
   of a device, and sniffs a filesystem on a device with no table at all.
 - A lint gate and CI.
 - The toolchain is pinned, matching the sibling crates.
+- **One check gates a merge, and it stands for every job.** `ci.yml` grew a
+  `ci-ok` job that `needs:` every other job in the workflow and fails when any
+  of them failed, was cancelled or was **skipped**; `.github-guard` requires it
+  and nothing else, in place of the three names it pinned before (`fmt`,
+  `test / ubuntu-latest`, `test / macos-latest`). Two of those three were legs
+  of one matrix, so adding a leg — the `ubuntu-24.04-arm` one #15 needs —
+  would have produced a check that reports on every pull request and gates
+  nothing. `tests/ci_aggregate_gate.rs` holds both halves to it: every job in
+  `ci.yml` must appear in `ci-ok`'s `needs`, `ci-ok` must carry `if: always()`,
+  and `.github-guard` must require `ci-ok` alone.
 
 ### Changed
 
