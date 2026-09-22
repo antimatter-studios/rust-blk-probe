@@ -65,3 +65,46 @@ jobs:
           components: rustfmt
       - name: fmt
         run: cargo fmt --check
+
+  ci-ok:
+    name: ci-ok
+    # THE ONE REQUIRED CHECK (#18). Branch protection names this job and no
+    # other, so the two jobs above can be renamed, split or grown a leg
+    # without leaving a required context that never reports — which GitHub
+    # reads as permanently pending, and with `enforce_admins` on that is an
+    # unbreakable block with no failure to point at.
+    #
+    #   test   the matrix: `cargo build`, `cargo test` and
+    #          `clippy -D warnings` on ubuntu-latest and macos-latest, each
+    #          against the six sibling crates cloned at their pinned tags.
+    #          `needs:` names the JOB, not its legs, so adding an
+    #          `ubuntu-24.04-arm` leg — which #15 needs, because the
+    #          `unnecessary_cast` it reports is invisible to both current
+    #          targets — is waited on the moment it exists, with no second
+    #          edit here and none in `.github-guard`.
+    #   fmt    `cargo fmt --check`, once: the same answer on every platform,
+    #          so it is not a matrix leg.
+    #
+    # `if: always()` is what makes it a gate rather than a summary. Without
+    # it a cancelled or skipped dependency leaves this job skipped too, and a
+    # skipped required check is indistinguishable from an absent one.
+    if: always()
+    needs: [test, fmt]
+    runs-on: ubuntu-latest
+    steps:
+      - name: every gating job must have concluded success
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          # SKIPPED FAILS, and so does cancelled. A job that did not run is
+          # not a job that passed: `test` reaches for six sibling clones and
+          # a toolchain, and every way that can go wrong ends in a result
+          # this line has to refuse rather than wave through.
+          bad="$(echo "$NEEDS" | jq -r '[to_entries[] | select(.value.result != "success") | .key] | join(", ")')"
+          if [ -n "$bad" ]; then
+            echo "::error::not green: $bad (failed, cancelled or skipped)"
+            exit 1
+          fi
+          echo "all gating jobs succeeded"
