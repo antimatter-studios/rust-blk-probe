@@ -111,6 +111,7 @@ tasks:
     # warnings on the opaque FsCoreDevice handle were scoped away —
     # `-D warnings` turned them into sixteen errors.
     cmds:
+      - scripts/agents-core-check.sh
       - cargo fmt --check
       - cargo clippy --locked --all-targets -- -D warnings
 
