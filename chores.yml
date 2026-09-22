@@ -3,7 +3,7 @@ chore_min_version: 0.6.0
 
 # THE CONTRACT THIS FILE EXISTS TO OWN.
 #
-# How to build diskprobe is knowledge that belongs to diskprobe. It used to
+# How to build blk-probe is knowledge that belongs to blk-probe. It used to
 # live in diskjockey/scripts/build-disk-probe.sh, which knew the two target
 # triples, the cargo profile, where cargo puts things, and how to lipo them
 # together. None of that is a consumer's business.
@@ -15,21 +15,23 @@ chore_min_version: 0.6.0
 # that the host app shells out to as a child process. A task called
 # `staticlib` would be promising an artifact that does not exist.
 #
-# THE BINARY IS NAMED diskprobe AND MUST STAY THAT WAY. DiskJockey stages it
+# THE BINARY IS NAMED blk-probe AND MUST NOT CHANGE ALONE. It was diskprobe
+# until it was renamed in lockstep with DiskJockey. DiskJockey stages it
 # by that name and invokes it by that name — FSKitMountService.swift mirrors
-# its JSON shape and locates `lib/diskprobe/diskprobe`, AgentImpl.swift runs
+# its JSON shape and locates `lib/blk-probe/blk-probe`, AgentImpl.swift runs
 # it as a Process, SwiftPartitionProbe.swift falls back to it for container
 # formats. Renaming the [[bin]] breaks the app silently: the build succeeds
-# and the app reports "diskprobe binary not found".
+# and the app reports "blk-probe binary not found".
 #
 # THE OUTPUT IS UNIVERSAL arm64 + x86_64, preserved from the script it
 # replaces. It is a single lipo'd file, not two.
 vars:
   ARM_TRIPLE: aarch64-apple-darwin
   X86_TRIPLE: x86_64-apple-darwin
-  # `[package].name` and `[[bin]].name` are both diskprobe, so cargo writes
-  # target/<triple>/release/diskprobe. See the note above before changing it.
-  BINNAME: diskprobe
+  # Cargo names the executable after `[[bin]].name`, not `[package].name`, so
+  # the package can be rust-blk-probe while this stays
+  # target/<triple>/release/blk-probe. See the note above before changing it.
+  BINNAME: blk-probe
 
 tasks:
   binary:
@@ -133,6 +135,6 @@ tasks:
     # A value-returning task returns a value and does nothing else; the caller
     # builds first. PATTERNS.md's shape, arrived at the hard way.
     cmds:
-      - 'cd "{{.OUT}}" && pwd -P | tr -d "\n"; printf "/diskprobe\n"'
+      - 'cd "{{.OUT}}" && pwd -P | tr -d "\n"; printf "/blk-probe\n"'
     vars:
       OUT: 'dist'
