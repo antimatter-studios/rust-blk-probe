@@ -73,6 +73,14 @@ jobs:
         # CI here does not install chore -- a guard wired only into a task
         # nothing runs is a guard that reports protection it is not providing.
         run: scripts/agents-core-check.sh
+      # The shell tests, by glob, so a guard added later needs no edit here.
+      - name: script tests (tests/scripts/*.sh)
+        run: |
+          set -euo pipefail
+          for t in tests/scripts/*.sh; do
+            echo "== $t"
+            bash "$t"
+          done
 
   ci-ok:
     name: ci-ok
