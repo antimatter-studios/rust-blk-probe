@@ -161,7 +161,7 @@ built on `am-fs-core` and `am-partitions`. It is a **binary**, not a staticlib â
 links this into the app.
 
 The binary is named `blk-probe`. It was renamed from `diskprobe` in #11, and
-diskjockey's consumer side landed in lockstep; there is no fallback to the old
+the consumer side landed in lockstep; there is no fallback to the old
 name anywhere and none should be added.
 
 ## Running tests
@@ -169,7 +169,7 @@ name anywhere and none should be added.
 ```sh
 chore build      # debug build
 chore test       # the suite
-chore lint       # fmt, the agent-core check, clippy
+chore lint       # the agent-core check, the shell tests, fmt, clippy
 ```
 
 CI runs `test`, `fmt`, and `ci-ok` aggregates them.

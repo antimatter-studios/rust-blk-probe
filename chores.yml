@@ -4,7 +4,7 @@ chore_min_version: 0.6.0
 # THE CONTRACT THIS FILE EXISTS TO OWN.
 #
 # How to build blk-probe is knowledge that belongs to blk-probe. It used to
-# live in diskjockey/scripts/build-disk-probe.sh, which knew the two target
+# live in a consumer's build-disk-probe.sh, which knew the two target
 # triples, the cargo profile, where cargo puts things, and how to lipo them
 # together. None of that is a consumer's business.
 #
@@ -16,12 +16,11 @@ chore_min_version: 0.6.0
 # `staticlib` would be promising an artifact that does not exist.
 #
 # THE BINARY IS NAMED blk-probe AND MUST NOT CHANGE ALONE. It was diskprobe
-# until it was renamed in lockstep with DiskJockey. DiskJockey stages it
-# by that name and invokes it by that name — FSKitMountService.swift mirrors
-# its JSON shape and locates `lib/blk-probe/blk-probe`, AgentImpl.swift runs
-# it as a Process, SwiftPartitionProbe.swift falls back to it for container
-# formats. Renaming the [[bin]] breaks the app silently: the build succeeds
-# and the app reports "blk-probe binary not found".
+# until it was renamed in lockstep with its consumer, which stages it by
+# that name and invokes it by that name: it mirrors the JSON shape, locates
+# `lib/blk-probe/blk-probe`, runs it as a child process, and falls back to it
+# for container formats. Renaming the [[bin]] breaks a consumer silently: its
+# build succeeds and it reports "blk-probe binary not found" at run time.
 #
 # THE OUTPUT IS UNIVERSAL arm64 + x86_64, preserved from the script it
 # replaces. It is a single lipo'd file, not two.
@@ -55,7 +54,7 @@ tasks:
     # does lives in those crates: it links am-fs-core, four am-img-* container
     # readers and am-partitions, all by `path = "../rust-*"`. A version bump
     # in any of them changes that crate's Cargo.toml, and without these lines
-    # the fingerprint would still match and diskjockey would keep staging a
+    # the fingerprint would still match and a consumer would keep staging a
     # binary built against the old code.
     #
     # THE GAP THAT LEAVES, said out loud: a change to a sibling's `src/` that
@@ -112,8 +111,22 @@ tasks:
     # `-D warnings` turned them into sixteen errors.
     cmds:
       - scripts/agents-core-check.sh
+      - task: test:scripts
       - cargo fmt --check
       - cargo clippy --locked --all-targets -- -D warnings
+
+  test:scripts:
+    desc: The shell tests (tests/scripts/*.sh), every one by glob
+    # By glob, so a test added later needs no edit here -- a guard that has
+    # to be registered somewhere else is a guard that gets silently skipped.
+    # CI runs the same loop in the fmt job.
+    cmds:
+      - |
+        set -eu
+        for t in tests/scripts/*.sh; do
+          echo "== $t"
+          bash "$t"
+        done
 
   test:
     desc: Test suite
