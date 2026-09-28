@@ -38,23 +38,14 @@
 //!     "device_fs_error": "read failed: ..", // only when that sniff failed
 //!     "partitions": [
 //!       {
-//!         "index": 0,                    // position in this list
-//!         "slot": 0,                     // position in the on-disk table, or -1
-//!                                        // for a whole-device entry. The name the
-//!                                        // system shows is slot + 1: slot 2 is
-//!                                        // /dev/sda3. A table with a hole in it
-//!                                        // is routine, and then index != slot.
+//!         "index": 0,
 //!         "start": 1048576,
 //!         "length": 268435456,
 //!         "fs_kind": "ext2"|"ext3"|"ext4"|"ntfs"|"fat32"|"fat16"|"exfat"|"hfs_plus"|"apfs"|"linux_swap"|"iso9660"|"squashfs"|"unknown"|"error",
 //!         "fs_kind_error": "read failed: ..", // only when fs_kind is "error"
 //!         "type_byte": 131,                 // MBR partition type byte (0 for GPT)
 //!         "type_guid": "0fc63daf-8483-...", // GPT type GUID (zeros for MBR)
-//!         "label": "boot",                  // optional, may be absent
-//!         "issues": 4                       // only when non-zero: the entry breaks
-//!                                           // one of its own table's rules. It can
-//!                                           // still be readable; say so before
-//!                                           // acting. Bits belong to am-partitions.
+//!         "label": "boot"                   // optional, may be absent
 //!       },
 //!       ...
 //!     ]
@@ -586,27 +577,15 @@ fn main() {
 
     let mut entries: Vec<String> = Vec::with_capacity(count);
     for i in 0..count {
-        let mut info = PartitionInfo {
-            start: 0,
-            length: 0,
-            fs_kind: FsKindCode::Unknown as i32,
-            table_kind: 0,
-            type_guid: [0u8; 16],
-            type_byte: 0,
-            _pad: [0u8; 7],
-            label: ptr::null(),
-            label_len: 0,
-            bootable: 0,
-            _pad2: [0u8; 7],
-            attributes: 0,
-            // `partitions_get` overwrites every field, so these are
-            // only the values it would find if it did not. `-1` is the
-            // crate's own sentinel for "this entry occupies no slot in
-            // the on-disk table", which is the honest thing for a
-            // struct nothing has filled yet.
-            slot: -1,
-            issues: 0,
-        };
+        // ZEROED, NOT A STRUCT LITERAL. `PartitionInfo` is a `repr(C)`
+        // out-parameter that `partitions_get` overwrites in full, so its
+        // starting value carries no meaning -- but a literal has to name
+        // every field, and `am-partitions` adds fields between releases
+        // (`slot` and `issues` are on its `main`, not in v0.4.1). A
+        // literal therefore failed to compile against whichever side it
+        // was not written for (#14). All-zero is a valid value for every
+        // field: integers, byte arrays, and a null `label`.
+        let mut info: PartitionInfo = unsafe { std::mem::zeroed() };
         let grc = unsafe { partitions_get(list, i, &mut info) };
         if grc != FsCoreErrorCode::Ok {
             continue;
@@ -636,34 +615,15 @@ fn main() {
             None
         };
 
-        // `index` IS NOT THE PARTITION NUMBER, and `slot` is.
-        //
-        // `index` is the position in the list this probe walked; `slot`
-        // is the entry's position in the on-disk table, which the
-        // system's own name is one more than -- slot 2 is `/dev/sda3`.
-        // A table with a hole in it is routine, and then the two differ.
-        // Reporting only `index` invited every consumer to read it as
-        // the number the system shows, which is why `am-partitions`
-        // grew the field.
         let mut entry = format!(
-            "{{\"index\":{},\"slot\":{},\"start\":{},\"length\":{},\"fs_kind\":\"{}\",\"type_byte\":{},\"type_guid\":\"{}\"",
+            "{{\"index\":{},\"start\":{},\"length\":{},\"fs_kind\":\"{}\",\"type_byte\":{},\"type_guid\":\"{}\"",
             i,
-            info.slot,
             info.start,
             info.length,
             fs_label,
             info.type_byte,
             fmt_guid(&info.type_guid),
         );
-        // ONLY WHEN THERE ARE ANY. A non-zero value means the entry
-        // disagrees with the header that describes it -- it does not
-        // mean the partition cannot be read, but a caller should say so
-        // before acting on it, and `partitions_open_slice` refuses a
-        // slice for one. Emitted as a number because the bit meanings
-        // belong to `am-partitions`, not to this probe.
-        if info.issues != 0 {
-            entry.push_str(&format!(",\"issues\":{}", info.issues));
-        }
         entry.push_str(&sniff_error_field("fs_kind_error", fs_error.as_deref()));
         if let Some(l) = label_str {
             entry.push_str(&format!(",\"label\":\"{}\"", json_escape(&l)));
