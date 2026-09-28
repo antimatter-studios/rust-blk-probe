@@ -577,20 +577,15 @@ fn main() {
 
     let mut entries: Vec<String> = Vec::with_capacity(count);
     for i in 0..count {
-        let mut info = PartitionInfo {
-            start: 0,
-            length: 0,
-            fs_kind: FsKindCode::Unknown as i32,
-            table_kind: 0,
-            type_guid: [0u8; 16],
-            type_byte: 0,
-            _pad: [0u8; 7],
-            label: ptr::null(),
-            label_len: 0,
-            bootable: 0,
-            _pad2: [0u8; 7],
-            attributes: 0,
-        };
+        // ZEROED, NOT A STRUCT LITERAL. `PartitionInfo` is a `repr(C)`
+        // out-parameter that `partitions_get` overwrites in full, so its
+        // starting value carries no meaning -- but a literal has to name
+        // every field, and `am-partitions` adds fields between releases
+        // (`slot` and `issues` are on its `main`, not in v0.4.1). A
+        // literal therefore failed to compile against whichever side it
+        // was not written for (#14). All-zero is a valid value for every
+        // field: integers, byte arrays, and a null `label`.
+        let mut info: PartitionInfo = unsafe { std::mem::zeroed() };
         let grc = unsafe { partitions_get(list, i, &mut info) };
         if grc != FsCoreErrorCode::Ok {
             continue;
@@ -606,8 +601,15 @@ fn main() {
             }
         };
         let label_str = if !info.label.is_null() && info.label_len > 0 {
+            // `.cast()`, NOT `as *const u8`. `c_char` is signed on
+            // x86_64-linux and UNSIGNED on aarch64-linux, so the `as`
+            // was a real cast on one target and a no-op on the other --
+            // and clippy refuses a no-op cast, which made
+            // `clippy -D warnings` fail on aarch64 while both CI targets
+            // passed (#15). `.cast()` is the same conversion and is
+            // correct on either.
             let bytes =
-                unsafe { std::slice::from_raw_parts(info.label as *const u8, info.label_len) };
+                unsafe { std::slice::from_raw_parts(info.label.cast::<u8>(), info.label_len) };
             std::str::from_utf8(bytes).ok().map(|s| s.to_string())
         } else {
             None
