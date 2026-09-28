@@ -1,0 +1,103 @@
+name: fuzz
+
+# The explorer half of the fuzzing setup. The gate half --
+# tests/fuzz_decoders.rs -- runs inside the `test` tiers of ci.yml on every
+# pull request, because it is deterministic and finishes in seven seconds.
+# This one is neither, and that is why it is here instead.
+#
+# A FUZZER'S RESULT DEPENDS ON HOW LONG IT RAN. In the pull request gate, a
+# fresh finding would fail whichever unrelated change happened to be open, and
+# a green result would only ever mean "nothing found in the seconds we could
+# spare". So it runs nightly and on demand, and when it finds something the
+# reproducer is uploaded. That reproducer belongs in fuzz/corpus/, where the
+# gate replays it on every pull request from then on.
+#
+# IT IS NOT A REQUIRED CHECK AND MUST NEVER BECOME ONE. .github-guard requires
+# `ci-ok` and nothing else, and this workflow has no `pull_request:` trigger,
+# so it cannot report on a pull request at all -- a required context that
+# never reports reads to GitHub as permanently pending.
+#
+# This crate is the first thing to touch an untrusted device: it reads the
+# magic at offset 0 before anything has established what the device even is,
+# and whatever it decides sends the bytes to a container reader, a partition
+# walker and a filesystem sniffer in turn.
+on:
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: "Seconds per target"
+        required: false
+        default: "120"
+  schedule:
+    - cron: "0 3 * * *"
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  fuzz:
+    name: fuzz the probe over hostile images
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      # The fuzz crate depends on this crate by path, so it reaches the same
+      # six siblings, at the same pins ci.yml uses.
+      - name: clone the sibling crates
+        shell: bash
+        run: |
+          set -euo pipefail
+          clone() { git clone --depth 1 --branch "$2" \
+              "https://github.com/antimatter-studios/$1.git" "../$1"; }
+          clone rust-fs-core   v0.2.13
+          clone rust-img-qcow2 v0.4.5
+          clone rust-img-vhd   v0.4.0
+          clone rust-img-vhdx  v0.4.0
+          clone rust-img-vmdk  v0.3.5
+          clone rust-partitions v0.4.1
+
+      # Nightly, not the pin in rust-toolchain.toml. cargo-fuzz needs
+      # `-Z sanitizer`, which stable does not have. The explicit `+nightly` in
+      # scripts/fuzz-all.sh overrides the pin for those invocations and
+      # nothing else.
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Building cargo-fuzz takes several minutes and changes about as often
+      # as the toolchain does.
+      - name: Cache cargo-fuzz
+        id: cache-cargo-fuzz
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-fuzz
+          key: cargo-fuzz-${{ runner.os }}-${{ runner.arch }}-v1
+
+      - name: Install cargo-fuzz
+        if: steps.cache-cargo-fuzz.outputs.cache-hit != 'true'
+        run: cargo +nightly install cargo-fuzz --locked
+
+      # WHAT THE FUZZER WAS GIVEN, in the log. A corpus that quietly emptied
+      # would otherwise look like a clean run.
+      - name: the corpus it starts from
+        run: |
+          find fuzz/corpus -type f | sort
+          echo "total: $(find fuzz/corpus -type f | wc -l) seeds"
+
+      - name: fuzz
+        run: ./scripts/fuzz-all.sh "${{ inputs.seconds || '120' }}"
+
+      # A crash reproducer is written to fuzz/artifacts/<target>/ on the
+      # runner, and the runner is thrown away. Without this the only record of
+      # a finding is a red job, and the input that caused it -- the one thing
+      # that makes it fixable -- is gone.
+      - name: keep any reproducer
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-artifacts
+          path: fuzz/artifacts/
+          if-no-files-found: ignore
+          retention-days: 30

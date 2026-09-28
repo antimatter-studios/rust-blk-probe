@@ -4,10 +4,18 @@
 container), walk its partition table, and emit JSON describing what is
 inside.
 
-This repository builds a **command-line binary**, not a library. Every
-sibling in the family (`rust-fs-*`, `rust-img-*`, `rust-partitions`) hands
-back a static archive and headers; this one hands back one executable that a
-host application runs as a child process.
+**The interface is a command-line binary.** Every sibling in the family
+(`rust-fs-*`, `rust-img-*`, `rust-partitions`) hands back a static archive and
+headers; this one hands back one executable that a host application runs as a
+child process. There is no `staticlib` task here and nothing links this crate.
+
+The probe itself is a **library beside it**, and that is a testing decision
+rather than a second interface. `blk_probe::probe_path` is what the binary
+runs and `blk_probe::probe_bytes` is the same probe over an image already in
+memory. A probe reachable only by running a process cannot be fuzzed, cannot
+be compared against `blkid` from a test, and can only be unit-tested from
+inside its own `main.rs` — which is what this crate was, and why it was the
+one component of the family with no fuzz target.
 
 ## The name
 

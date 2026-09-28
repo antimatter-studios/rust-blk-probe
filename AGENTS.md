@@ -198,13 +198,34 @@ answer for `am-fs-core` — verified by its `--version` string and copied into
 gitignored `tmp/` for the run. A copy that is present and answers something
 else is **fatal**, not a reason to look elsewhere.
 
-## The test suite is almost entirely absent, and that is the first thing to fix
+## Fuzzing: two tiers, one corpus
 
-`tests/` holds **one file**, and it checks CI configuration rather than what the
-probe does. There is no test that gives the probe an image and asserts what it
-says about it. Treat that as the standing gap: work here should be adding real
-coverage against images built by third-party tools (`sgdisk`, `sfdisk`,
-`mkfs.*`), which is the oracle-independence rule applied to this crate.
+`fuzz/` is the **explorer** — `cargo-fuzz` targets on nightly, run for a
+bounded time by `.github/workflows/fuzz.yml` nightly and on demand. It is not
+a required check and must not become one: what a fuzzer finds depends on how
+long it ran, so a fresh finding would fail whichever unrelated pull request
+happened to be open.
+
+`tests/fuzz_decoders.rs` is the **gate** — deterministic, stable toolchain, in
+every pull request. It replays every file in `fuzz/corpus/` and then applies
+seeded, length-preserving mutations to them, under a deadline (a hang fails
+the run) and an executed-case floor of 15,000 (a suite that stopped generating
+cases fails rather than passing empty). Anything the explorer finds is
+committed to the corpus, which is why both tiers read the same directory.
+
+`scripts/make-fuzz-corpus.sh` rebuilds that corpus from images `sgdisk`,
+`sfdisk`, `mkfs.ext4`, `mksquashfs` and `qemu-img` wrote. Those images are
+also the **oracle**: `every_committed_image_is_read_as_what_the_tool_that_
+wrote_it_says` holds each one to the container and the table its maker put
+there, on a machine with none of those tools installed. A seed that stopped
+probing would otherwise go on being mutated and go on not failing.
+
+**The corpus has already earned it.** `fuzz/corpus/probe/vhdx-head.img` — the
+first 320 KiB of a real VHDX — turned a use-after-free into a SIGBUS on the
+first run of the gate that replayed it. The four `*_open_on_device` functions
+consume the handle they are given *before* they try to parse anything, so a
+NULL return does not mean nothing happened; closing the inner handle on that
+path is a double free. See `open_container_on`'s doc comment.
 
 ## Two known traps
 

@@ -13,3 +13,10 @@
 # scripts/tier.sh writes tmp/logs/<tier>.log here and CI uploads the
 # directory as an artifact; nothing in it is committed.
 /tmp/
+
+# The fuzz crate builds into its own target/, and libFuzzer drops a
+# reproducer for anything it finds into artifacts/. A reproducer belongs in
+# fuzz/corpus/ -- where tests/fuzz_decoders.rs replays it on every pull
+# request -- not left where the next run would overwrite it.
+/fuzz/target/
+/fuzz/artifacts/

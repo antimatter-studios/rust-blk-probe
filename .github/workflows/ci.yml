@@ -71,8 +71,8 @@ jobs:
       - name: test (debug)
         shell: bash
         run: |
-          bash scripts/tier.sh "test (debug)" debug 90 6000 -- cargo test --locked --all-targets
-          bash scripts/test-floor.sh debug 40
+          bash scripts/tier.sh "test (debug)" debug 110 7000 -- cargo test --locked --all-targets
+          bash scripts/test-floor.sh debug 45
 
       # THE PROFILE THAT SHIPS. `chore binary` builds --release with
       # opt-level 3 and LTO; every test above this line ran with debug_assert!
@@ -81,8 +81,8 @@ jobs:
       - name: test (release)
         shell: bash
         run: |
-          bash scripts/tier.sh "test (release)" release 90 6000 -- cargo test --locked --release --all-targets
-          bash scripts/test-floor.sh release 40
+          bash scripts/tier.sh "test (release)" release 110 7000 -- cargo test --locked --release --all-targets
+          bash scripts/test-floor.sh release 45
 
       # A quiet tier keeps everything; it just does not print it. Without this
       # the transcript of a failing run dies with the runner, and the one-line
