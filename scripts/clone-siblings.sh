@@ -10,23 +10,11 @@
 # sweep in rust-fs-core#168 that found three spellings across five
 # repositories, two of which a single grep missed).
 #
-# WHY TAGS AND NOT BRANCHES, and the one place that is not true yet. A tag
-# cannot move under a green build, so a sibling's `main` advancing cannot
-# change what this crate was tested against. Two of the six are pinned to a
-# ref whose CONTENT this crate cannot actually build against today:
-#
-#   am-partitions  v0.4.1 predates the `slot` and `issues` fields on
-#                  PartitionInfo by one day. src/lib.rs sets both, so the
-#                  tagged tree does not compile here. rust-partitions#131 is
-#                  the 0.5.0 release that would fix it; this repository's #14
-#                  and #27 track the consequence.
-#   am-img-vmdk    v0.3.5's manifest has no `flate2`, and this repository's
-#                  Cargo.lock -- resolved against the sibling mains -- does.
-#                  `cargo build --locked` against the tagged tree therefore
-#                  refuses to resolve at all.
-#
-# Both are recorded here, beside the pin, rather than in an issue nobody reads
-# while editing a workflow.
+# WHY TAGS AND NOT BRANCHES. A tag cannot move under a green build, so a
+# sibling's `main` advancing cannot change what this crate was tested against,
+# and Cargo.lock is resolved against exactly these trees -- `cargo build
+# --locked` refuses a lock resolved against a sibling's `main` whenever that
+# `main` has added a dependency its tag lacks, as am-img-vmdk's has.
 #
 # Usage: scripts/clone-siblings.sh [destination-parent]
 #   The default parent is the directory holding this checkout, which is where

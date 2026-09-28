@@ -253,13 +253,14 @@ for each, and `tests/scripts/test-sibling-pins-agree.sh` refuses a floor
 requirement, a dependency with no pin, a pin with no dependency, or a workflow
 that clones a sibling itself.
 
-- **#14 / #27** — two of the six pins name a tag this crate cannot actually be
-  built against. `am-partitions v0.4.1` predates the `slot` and `issues`
-  fields `src/lib.rs` sets, and `am-img-vmdk v0.3.5`'s manifest has no
-  `flate2` while `Cargo.lock` — resolved against the mains — does, so
-  `cargo build --locked` against the tagged tree refuses to resolve. Both need
-  a release from the sibling (rust-partitions#131). The notes are beside the
-  pins as well as here.
+- **#14 / #28** — `am-partitions` adds fields to `PartitionInfo` between
+  releases (`slot` and `issues` are on its `main`, not in v0.4.1). `src/lib.rs`
+  zero-initialises the out-parameter rather than naming its fields, so it
+  builds against the pinned tag and the `main` alike; do not turn it back into
+  a struct literal. `Cargo.lock` is resolved against the pinned tags — a lock
+  resolved against a sibling's `main` (am-img-vmdk's adds `flate2`) makes
+  `cargo build --locked` refuse on every CI leg. Reporting `slot` and `issues`
+  waits for am-partitions 0.5.0 (#28).
 - **#15** — an `unnecessary_cast` in the partition-label slice fires only on
   aarch64, where `c_char` is unsigned. `.cast::<u8>()` is the spelling that is
   right on every target; `as *const u8` is a no-op cast there and clippy

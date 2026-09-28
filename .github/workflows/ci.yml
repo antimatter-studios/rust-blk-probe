@@ -134,15 +134,13 @@ jobs:
         run: scripts/agents-core-check.sh
       # rust-fs-core OWNS output-budget.sh, and test-tier-wrapper.sh drives
       # tier.sh against the real one rather than a stand-in, so this job
-      # needs that sibling beside it too -- at the same tag the test matrix
-      # clones. Without it the guard fails naming rust-fs-core, which is the
-      # guard working, not a reason to skip it.
-      - name: clone rust-fs-core for the output-budget wrapper
+      # needs that sibling beside it too -- at the same pin the test matrix
+      # uses, which is why it goes through scripts/clone-siblings.sh rather
+      # than cloning rust-fs-core itself. Without it the guard fails naming
+      # rust-fs-core, which is the guard working, not a reason to skip it.
+      - name: clone the sibling crates
         shell: bash
-        run: |
-          set -euo pipefail
-          git clone --depth 1 --branch v0.2.13 \
-              https://github.com/antimatter-studios/rust-fs-core.git ../rust-fs-core
+        run: bash scripts/clone-siblings.sh
       # The shell tests, by glob, so a guard added later needs no edit here.
       - name: script tests (tests/scripts/*.sh)
         run: |
