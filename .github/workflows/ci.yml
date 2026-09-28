@@ -39,16 +39,11 @@ jobs:
       # crate was tested against. Matches the versions in Cargo.toml.
       - name: clone the sibling crates
         shell: bash
-        run: |
-          set -euo pipefail
-          clone() { git clone --depth 1 --branch "$2" \
-              "https://github.com/antimatter-studios/$1.git" "../$1"; }
-          clone rust-fs-core   v0.2.13
-          clone rust-img-qcow2 v0.4.5
-          clone rust-img-vhd   v0.4.0
-          clone rust-img-vhdx  v0.4.0
-          clone rust-img-vmdk  v0.3.5
-          clone rust-partitions v0.4.1
+        # THE PINS ARE IN scripts/clone-siblings.sh, which is the only place
+        # they are written. They used to be spelled out in both ci.yml and
+        # fuzz.yml, and a pin in two places is a pin that moves in one of
+        # them (#27).
+        run: bash scripts/clone-siblings.sh
 
       - uses: dtolnay/rust-toolchain@stable
         with:

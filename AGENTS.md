@@ -245,15 +245,26 @@ consume the handle they are given *before* they try to parse anything, so a
 NULL return does not mean nothing happened; closing the inner handle on that
 path is a double free. See `open_container_on`'s doc comment.
 
-## Two known traps
+## The siblings, and two known traps
 
-- **#14** — building against siblings at `main` fails: `PartitionInfo` gained
-  `slot` and `issues`. Check out the siblings at the refs `chores.yml` pins, or
-  the build breaks for a reason that has nothing to do with your change.
-- **#15** — an `unnecessary_cast` at `src/main.rs:610` fires only on aarch64,
-  which no current CI target covers. The pre-commit clippy hook runs on this
-  machine's architecture, so it can block a commit over a warning CI will never
-  show you.
+`scripts/clone-siblings.sh` is the **only** place a sibling ref is written.
+`ci.yml` and `fuzz.yml` both call it, `Cargo.toml` names the matching release
+for each, and `tests/scripts/test-sibling-pins-agree.sh` refuses a floor
+requirement, a dependency with no pin, a pin with no dependency, or a workflow
+that clones a sibling itself.
+
+- **#14 / #27** — two of the six pins name a tag this crate cannot actually be
+  built against. `am-partitions v0.4.1` predates the `slot` and `issues`
+  fields `src/lib.rs` sets, and `am-img-vmdk v0.3.5`'s manifest has no
+  `flate2` while `Cargo.lock` — resolved against the mains — does, so
+  `cargo build --locked` against the tagged tree refuses to resolve. Both need
+  a release from the sibling (rust-partitions#131). The notes are beside the
+  pins as well as here.
+- **#15** — an `unnecessary_cast` in the partition-label slice fires only on
+  aarch64, where `c_char` is unsigned. `.cast::<u8>()` is the spelling that is
+  right on every target; `as *const u8` is a no-op cast there and clippy
+  refuses it, so the pre-commit hook can block a commit over a warning two of
+  the three CI legs will never show you.
 
 ## What gates a merge
 
