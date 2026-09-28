@@ -58,8 +58,45 @@ jobs:
 
       - name: build
         run: cargo build --locked --all-targets
-      - name: test
-        run: cargo test --locked --all-targets
+
+      # THE TIERS RUN THROUGH scripts/tier.sh, WITH THE NUMBERS chores.yml
+      # HAS. The workflow cannot read chores.yml without installing chore on
+      # three runner platforms, so the budgets and floors are repeated here --
+      # and tests/scripts/test-tier-budgets-agree.sh fails a pull request in
+      # which the two files disagree. Raise a budget in both or in neither.
+      #
+      # `shell: bash` on every leg, because the tier scripts are bash and
+      # macos-latest is not where that is in question -- it is the default on
+      # all three, and saying so keeps it that way if a leg is ever added.
+      - name: test (debug)
+        shell: bash
+        run: |
+          bash scripts/tier.sh "test (debug)" debug 90 6000 -- cargo test --locked --all-targets
+          bash scripts/test-floor.sh debug 40
+
+      # THE PROFILE THAT SHIPS. `chore binary` builds --release with
+      # opt-level 3 and LTO; every test above this line ran with debug_assert!
+      # bodies live and overflow checks on. An offset computation that panics
+      # in one wraps in the other (#13), so both profiles are run.
+      - name: test (release)
+        shell: bash
+        run: |
+          bash scripts/tier.sh "test (release)" release 90 6000 -- cargo test --locked --release --all-targets
+          bash scripts/test-floor.sh release 40
+
+      # A quiet tier keeps everything; it just does not print it. Without this
+      # the transcript of a failing run dies with the runner, and the one-line
+      # verdict a failure prints names a log nobody can fetch. `if: always()`
+      # because the run worth keeping is the one that failed.
+      - name: keep the tier logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tier-logs-${{ matrix.os }}
+          path: tmp/logs/
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: clippy
         run: cargo clippy --locked --all-targets -- -D warnings
 
@@ -82,6 +119,17 @@ jobs:
         # CI here does not install chore -- a guard wired only into a task
         # nothing runs is a guard that reports protection it is not providing.
         run: scripts/agents-core-check.sh
+      # rust-fs-core OWNS output-budget.sh, and test-tier-wrapper.sh drives
+      # tier.sh against the real one rather than a stand-in, so this job
+      # needs that sibling beside it too -- at the same tag the test matrix
+      # clones. Without it the guard fails naming rust-fs-core, which is the
+      # guard working, not a reason to skip it.
+      - name: clone rust-fs-core for the output-budget wrapper
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch v0.2.13 \
+              https://github.com/antimatter-studios/rust-fs-core.git ../rust-fs-core
       # The shell tests, by glob, so a guard added later needs no edit here.
       - name: script tests (tests/scripts/*.sh)
         run: |
