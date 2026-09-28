@@ -1,0 +1,36 @@
+[package]
+name = "blk-probe-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+# The explorer half of the fuzzing setup. The gate half is
+# tests/fuzz_decoders.rs in the parent crate, which replays and mutates the
+# same corpus on the stable toolchain -- see that file's header for why the
+# work is split in two.
+#
+# Run one target:
+#   cargo +nightly fuzz run probe -- -max_total_time=60
+# Run all of them, which is what .github/workflows/fuzz.yml does:
+#   scripts/fuzz-all.sh 60
+
+[dependencies]
+libfuzzer-sys = "0.4"
+rust-blk-probe = { path = ".." }
+
+[[bin]]
+name = "probe"
+path = "fuzz_targets/probe.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "spliced"
+path = "fuzz_targets/spliced.rs"
+test = false
+doc = false
+bench = false

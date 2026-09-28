@@ -26,6 +26,26 @@ crates.io. Everything below is what the first release will contain.
   while the shipped binary is built with `opt-level = 3`, LTO and none of
   those (#13).
 - CI uploads `tmp/logs/` as an artifact on every leg, with `if: always()`.
+- **The probe is a library, and the binary is a front for it** (#16).
+  `blk_probe::probe_path` is what the CLI runs; `blk_probe::probe_bytes` is
+  the same probe over an image already in memory, backed by an `FsCoreDevice`
+  built from callbacks rather than a file.
+- **Two fuzzing tiers over one corpus.** `fuzz/` holds `cargo-fuzz` targets
+  for the whole-device probe and for an image wearing another format's magic;
+  `tests/fuzz_decoders.rs` replays and mutates the same corpus on the stable
+  toolchain in every pull request, under a deadline and a floor of 15,000
+  executed cases.
+- `scripts/make-fuzz-corpus.sh` builds the corpus from images `sgdisk`,
+  `sfdisk`, `mkfs.ext4`, `mksquashfs` and `qemu-img` wrote, and those images
+  are the oracle for what the probe reports about them.
+
+### Fixed
+
+- **A use-after-free on a container that fails to open.** `*_open_on_device`
+  consumes the handle it is given before it parses anything, so closing the
+  inner device after a NULL return frees it twice; a truncated VHDX crashed
+  the probe with SIGBUS instead of exiting 2. Found by the fuzz corpus on the
+  first run of the gate that replayed it.
 - The toolchain is pinned, matching the sibling crates.
 - **One check gates a merge, and it stands for every job.** `ci.yml` grew a
   `ci-ok` job that `needs:` every other job in the workflow and fails when any

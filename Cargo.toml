@@ -5,6 +5,21 @@ edition = "2021"
 license = "MIT"
 description = "CLI: open a disk image (raw or qcow2/vhd/vhdx/vmdk container), probe its partition table, emit JSON."
 
+# THE LIBRARY IS WHERE THE PROBE LIVES, and the binary is a front for it.
+# Nothing links this crate -- `chore binary` is its interface and there is no
+# `staticlib` task -- but a probe that cannot be called except by running a
+# process cannot be fuzzed, cannot be compared against `blkid` from an
+# integration test, and could only ever be unit-tested from inside its own
+# `main.rs` (#16).
+#
+# THE LIB NAME IS `blk_probe` AND IS SET EXPLICITLY. Left to cargo it would be
+# `rust_blk_probe`, after the package; the binary, the staged path a consumer
+# invokes and the crate a test says `use blk_probe::` to are all the same
+# word, and the package name is the odd one out.
+[lib]
+name = "blk_probe"
+path = "src/lib.rs"
+
 [[bin]]
 name = "blk-probe"
 path = "src/main.rs"
