@@ -38,6 +38,13 @@ crates.io. Everything below is what the first release will contain.
 - `scripts/make-fuzz-corpus.sh` builds the corpus from images `sgdisk`,
   `sfdisk`, `mkfs.ext4`, `mksquashfs` and `qemu-img` wrote, and those images
   are the oracle for what the probe reports about them.
+- **`blkid` and `sfdisk` are run over the same images and compared field by
+  field** (#13), in `tests/oracle_tools.rs`: the table `blkid` reports, the
+  filesystem it names on a whole-device image, and every partition's start,
+  length, type GUID or type byte and name as `sfdisk --dump` prints them. It
+  is compiled on Linux only, because those are util-linux's tools and there is
+  no equivalent on macOS to reach for; where they are absent on Linux the test
+  fails naming the package rather than returning early.
 
 ### Fixed
 
