@@ -213,6 +213,24 @@ the run) and an executed-case floor of 15,000 (a suite that stopped generating
 cases fails rather than passing empty). Anything the explorer finds is
 committed to the corpus, which is why both tiers read the same directory.
 
+## The oracles
+
+`tests/oracle_tools.rs` runs **`blkid -o export`** and **`sfdisk --dump`** over
+the committed corpus and compares them with this crate's document, field by
+field: the table, the whole-device filesystem, and every partition's start,
+length, type and name. None of those numbers came from this crate.
+
+It is compiled on **Linux only** — they are util-linux's tools and macOS has
+no equivalent — and on Linux a missing tool **fails**, naming the package. It
+does not skip. The recorded half of the same check, in `tests/fuzz_decoders.rs`,
+runs on every platform with neither tool installed, and this file is what keeps
+those recorded expectations honest.
+
+The interesting rows are the containers: `blkid` reads a qcow2 or a VMDK as an
+unrecognised blob, and this crate unwraps it and finds the same GPT `blkid`
+finds in the raw original. That is the reason the crate exists, written as a
+test rather than as a paragraph.
+
 `scripts/make-fuzz-corpus.sh` rebuilds that corpus from images `sgdisk`,
 `sfdisk`, `mkfs.ext4`, `mksquashfs` and `qemu-img` wrote. Those images are
 also the **oracle**: `every_committed_image_is_read_as_what_the_tool_that_

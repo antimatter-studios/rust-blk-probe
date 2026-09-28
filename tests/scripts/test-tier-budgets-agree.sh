@@ -40,8 +40,14 @@ def read(path):
     for m in TIER.finditer(text):
         label = m.group("label").strip('"\'')
         tiers[m.group("log")] = (label, m.group("lines"), m.group("bytes"))
+    # A TIER MAY DECLARE MORE THAN ONE FLOOR, and they are compared as a set.
+    # The oracle tests are util-linux's and are compiled only on Linux, so the
+    # two platforms run different numbers of tests and a single number would
+    # have to be the smaller one -- which is a floor the Linux legs cannot
+    # breach. The `uname -s` conditional carrying both numbers is the honest
+    # spelling, and this is what keeps the two files' copies of it identical.
     for m in FLOOR.finditer(text):
-        floors[m.group("log")] = m.group("floor")
+        floors.setdefault(m.group("log"), set()).add(m.group("floor"))
     return tiers, floors
 
 chores, ci = sys.argv[1], sys.argv[2]
@@ -71,7 +77,8 @@ for name, tiers, floors in ((chores, ct, cf), (ci, wt, wf)):
 for log in sorted(set(cf) & set(wf)):
     if cf[log] != wf[log]:
         problems.append(
-            f"floor for '{log}' disagrees: {chores} has {cf[log]}, {ci} has {wf[log]}")
+            f"floor for '{log}' disagrees: {chores} has {sorted(cf[log])}, "
+            f"{ci} has {sorted(wf[log])}")
 
 for p in problems:
     print(p)
@@ -119,4 +126,4 @@ if [ "$fails" -gt 0 ]; then
     echo "FAIL  $fails check(s) failed in $(basename "${BASH_SOURCE[0]}")" >&2
     exit 1
 fi
-echo "PASS  every tier has one budget and one floor, in both files"
+echo "PASS  every tier has one budget and the same floors, in both files"

@@ -71,8 +71,17 @@ jobs:
       - name: test (debug)
         shell: bash
         run: |
-          bash scripts/tier.sh "test (debug)" debug 110 7000 -- cargo test --locked --all-targets
-          bash scripts/test-floor.sh debug 45
+          bash scripts/tier.sh "test (debug)" debug 125 8000 -- cargo test --locked --all-targets
+          # TWO FLOORS, ONE PER PLATFORM, and the reason is
+          # tests/oracle_tools.rs: `blkid` and `sfdisk` are util-linux's, so
+          # that file is compiled only on Linux and the two platforms run
+          # different numbers of tests. A single number would have to be the
+          # smaller one, which is a floor the Linux legs could never breach.
+          if [ "$(uname -s)" = Linux ]; then
+            bash scripts/test-floor.sh debug 48
+          else
+            bash scripts/test-floor.sh debug 45
+          fi
 
       # THE PROFILE THAT SHIPS. `chore binary` builds --release with
       # opt-level 3 and LTO; every test above this line ran with debug_assert!
@@ -81,8 +90,17 @@ jobs:
       - name: test (release)
         shell: bash
         run: |
-          bash scripts/tier.sh "test (release)" release 110 7000 -- cargo test --locked --release --all-targets
-          bash scripts/test-floor.sh release 45
+          bash scripts/tier.sh "test (release)" release 125 8000 -- cargo test --locked --release --all-targets
+          # TWO FLOORS, ONE PER PLATFORM, and the reason is
+          # tests/oracle_tools.rs: `blkid` and `sfdisk` are util-linux's, so
+          # that file is compiled only on Linux and the two platforms run
+          # different numbers of tests. A single number would have to be the
+          # smaller one, which is a floor the Linux legs could never breach.
+          if [ "$(uname -s)" = Linux ]; then
+            bash scripts/test-floor.sh release 48
+          else
+            bash scripts/test-floor.sh release 45
+          fi
 
       # A quiet tier keeps everything; it just does not print it. Without this
       # the transcript of a failing run dies with the runner, and the one-line

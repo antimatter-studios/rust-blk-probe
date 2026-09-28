@@ -41,7 +41,7 @@ chore_min_version: 0.6.0
 #
 #     tier      measured (2026-09-28)   budget          headroom, and why
 #     -------   ---------------------   -------------   -------------------
-#     debug     82 lines, 4,703 bytes   110 / 7,000     34% / 49%. A cold
+#     debug     91 lines, 5,084 bytes   125 / 8,000     27% / 36%. A cold
 #                                                       `cargo clean && cargo
 #                                                       test --locked
 #                                                       --all-targets` on an
@@ -49,15 +49,20 @@ chore_min_version: 0.6.0
 #                                                       `Compiling` lines for
 #                                                       the six sibling crates
 #                                                       and their
-#                                                       dependencies, then 45
-#                                                       test lines across
-#                                                       three binaries. The
+#                                                       dependencies, then 48
+#                                                       test lines across four
+#                                                       binaries. THE LINUX
+#                                                       NUMBER IS THE LARGER
+#                                                       ONE -- tests/oracle_
+#                                                       tools.rs compiles only
+#                                                       there -- so it is the
+#                                                       one measured. The
 #                                                       headroom is for a
 #                                                       runner that compiles a
 #                                                       different dependency
 #                                                       set, not for the suite
 #                                                       to grow into quietly.
-#     release   82 lines, 4,698 bytes   110 / 7,000     the same run with
+#     release   91 lines, 5,080 bytes   125 / 8,000     the same run with
 #                                                       --release; the same
 #                                                       shape, so the same
 #                                                       budget.
@@ -198,8 +203,19 @@ tasks:
     # a tier that has outgrown either says so here -- before the push --
     # rather than in a CI log nobody was going to read.
     cmds:
-      - 'bash scripts/tier.sh "test (debug)" debug 110 7000 -- cargo test --locked --all-targets'
-      - 'bash scripts/test-floor.sh debug 45'
+      - 'bash scripts/tier.sh "test (debug)" debug 125 8000 -- cargo test --locked --all-targets'
+      - |
+        # TWO FLOORS, ONE PER PLATFORM, and the reason is tests/oracle_tools.rs:
+        # `blkid` and `sfdisk` are util-linux's, so that file is compiled only on
+        # Linux and the two platforms genuinely run different numbers of tests. A
+        # single number would have to be the smaller one, which is a floor the
+        # Linux legs could never breach -- they could lose the whole oracle suite
+        # and still pass it.
+        if [ "$(uname -s)" = Linux ]; then
+          bash scripts/test-floor.sh debug 48
+        else
+          bash scripts/test-floor.sh debug 45
+        fi
 
   test:release:
     desc: The suite in the release profile, which is the one that ships
@@ -209,8 +225,19 @@ tasks:
     # checks on. An offset computation that panics in one wraps in the other,
     # and the one that wraps is the one a consumer runs.
     cmds:
-      - 'bash scripts/tier.sh "test (release)" release 110 7000 -- cargo test --locked --release --all-targets'
-      - 'bash scripts/test-floor.sh release 45'
+      - 'bash scripts/tier.sh "test (release)" release 125 8000 -- cargo test --locked --release --all-targets'
+      - |
+        # TWO FLOORS, ONE PER PLATFORM, and the reason is tests/oracle_tools.rs:
+        # `blkid` and `sfdisk` are util-linux's, so that file is compiled only on
+        # Linux and the two platforms genuinely run different numbers of tests. A
+        # single number would have to be the smaller one, which is a floor the
+        # Linux legs could never breach -- they could lose the whole oracle suite
+        # and still pass it.
+        if [ "$(uname -s)" = Linux ]; then
+          bash scripts/test-floor.sh release 48
+        else
+          bash scripts/test-floor.sh release 45
+        fi
 
   test:
     desc: Every test tier, exactly as CI runs them
