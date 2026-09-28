@@ -20,7 +20,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # AND aarch64 LINUX, which is where `c_char` is UNSIGNED.
+        #
+        # It is signed on both of the other two, so a cast that is real
+        # on them is a no-op here and `clippy -D warnings` refuses it.
+        # That failure existed on `main` and neither gated target could
+        # see it: the repository's own guard refused every commit on an
+        # ARM Linux machine over a lint nothing in CI could reproduce
+        # (#15). A target that finds a class of defect is a target worth
+        # gating rather than trusting.
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -34,10 +43,10 @@ jobs:
           set -euo pipefail
           clone() { git clone --depth 1 --branch "$2" \
               "https://github.com/antimatter-studios/$1.git" "../$1"; }
-          clone rust-fs-core   v0.2.6
+          clone rust-fs-core   v0.2.13
           clone rust-img-qcow2 v0.4.5
-          clone rust-img-vhd   v0.3.5
-          clone rust-img-vhdx  v0.3.5
+          clone rust-img-vhd   v0.4.0
+          clone rust-img-vhdx  v0.4.0
           clone rust-img-vmdk  v0.3.5
           clone rust-partitions v0.4.1
 
@@ -91,8 +100,9 @@ jobs:
     # unbreakable block with no failure to point at.
     #
     #   test   the matrix: `cargo build`, `cargo test` and
-    #          `clippy -D warnings` on ubuntu-latest and macos-latest, each
-    #          against the six sibling crates cloned at their pinned tags.
+    #          `clippy -D warnings` on ubuntu-latest, ubuntu-24.04-arm and
+    #          macos-latest, each against the six sibling crates cloned at
+    #          their pinned tags.
     #          `needs:` names the JOB, not its legs, so adding an
     #          `ubuntu-24.04-arm` leg — which #15 needs, because the
     #          `unnecessary_cast` it reports is invisible to both current
