@@ -245,15 +245,27 @@ consume the handle they are given *before* they try to parse anything, so a
 NULL return does not mean nothing happened; closing the inner handle on that
 path is a double free. See `open_container_on`'s doc comment.
 
-## Two known traps
+## The siblings, and two known traps
 
-- **#14** — building against siblings at `main` fails: `PartitionInfo` gained
-  `slot` and `issues`. Check out the siblings at the refs `chores.yml` pins, or
-  the build breaks for a reason that has nothing to do with your change.
-- **#15** — an `unnecessary_cast` at `src/main.rs:610` fires only on aarch64,
-  which no current CI target covers. The pre-commit clippy hook runs on this
-  machine's architecture, so it can block a commit over a warning CI will never
-  show you.
+`scripts/clone-siblings.sh` is the **only** place a sibling ref is written.
+`ci.yml` and `fuzz.yml` both call it, `Cargo.toml` names the matching release
+for each, and `tests/scripts/test-sibling-pins-agree.sh` refuses a floor
+requirement, a dependency with no pin, a pin with no dependency, or a workflow
+that clones a sibling itself.
+
+- **#14 / #28** — `am-partitions` adds fields to `PartitionInfo` between
+  releases (`slot` and `issues` are on its `main`, not in v0.4.1). `src/lib.rs`
+  zero-initialises the out-parameter rather than naming its fields, so it
+  builds against the pinned tag and the `main` alike; do not turn it back into
+  a struct literal. `Cargo.lock` is resolved against the pinned tags — a lock
+  resolved against a sibling's `main` (am-img-vmdk's adds `flate2`) makes
+  `cargo build --locked` refuse on every CI leg. Reporting `slot` and `issues`
+  waits for am-partitions 0.5.0 (#28).
+- **#15** — an `unnecessary_cast` in the partition-label slice fires only on
+  aarch64, where `c_char` is unsigned. `.cast::<u8>()` is the spelling that is
+  right on every target; `as *const u8` is a no-op cast there and clippy
+  refuses it, so the pre-commit hook can block a commit over a warning two of
+  the three CI legs will never show you.
 
 ## What gates a merge
 

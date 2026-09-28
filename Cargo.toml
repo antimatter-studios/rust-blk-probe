@@ -24,13 +24,30 @@ path = "src/lib.rs"
 name = "blk-probe"
 path = "src/main.rs"
 
+# EACH REQUIREMENT NAMES A RELEASE, NOT A FLOOR (#27). `version = "0.2"` is
+# satisfied by everything from 0.2.0 to 0.2.13, so the only thing deciding
+# what was built was Cargo.lock -- and it sat at 0.2.6 for seven patch
+# releases while the requirement said nothing was wrong. A requirement that
+# understates its lock is the shape github-guard's `rust-deps-pinned` caught
+# in three sibling repositories during the v0.2.13 sweep.
+#
+# These are `path` dependencies, so what is compiled is whatever is in
+# ../rust-*; the requirement is consulted when publishing and nowhere else.
+# The lock beside this file is resolved against the tagged siblings, and
+# src/lib.rs zero-initialises `PartitionInfo` rather than naming its fields,
+# so it builds against am-partitions 0.4.1 and against its `main` alike.
+# Reporting `slot` and `issues` waits for the 0.5.0 that carries them (#28).
+#
+# The refs CI checks out are in scripts/clone-siblings.sh, and
+# tests/scripts/test-sibling-pins-agree.sh fails if this list and that one
+# stop naming the same six crates.
 [dependencies]
-am-fs-core = { path = "../rust-fs-core", version = "0.2" }
-am-img-qcow2 = { path = "../rust-img-qcow2", version = "0.4" }
-am-img-vhd = { path = "../rust-img-vhd", version = "0.4" }
-am-img-vhdx = { path = "../rust-img-vhdx", version = "0.4" }
-am-img-vmdk = { path = "../rust-img-vmdk", version = "0.3" }
-am-partitions = { path = "../rust-partitions", version = "0.4" }
+am-fs-core = { path = "../rust-fs-core", version = "0.2.13" }
+am-img-qcow2 = { path = "../rust-img-qcow2", version = "0.4.5" }
+am-img-vhd = { path = "../rust-img-vhd", version = "0.4.0" }
+am-img-vhdx = { path = "../rust-img-vhdx", version = "0.4.0" }
+am-img-vmdk = { path = "../rust-img-vmdk", version = "0.3.5" }
+am-partitions = { path = "../rust-partitions", version = "0.4.1" }
 
 [profile.release]
 opt-level = 3

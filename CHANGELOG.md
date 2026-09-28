@@ -26,6 +26,16 @@ crates.io. Everything below is what the first release will contain.
   while the shipped binary is built with `opt-level = 3`, LTO and none of
   those (#13).
 - CI uploads `tmp/logs/` as an artifact on every leg, with `if: always()`.
+- **The sibling refs are written once**, in `scripts/clone-siblings.sh`, which
+  `ci.yml` and `fuzz.yml` both call (#27). They were spelled out in both
+  workflows, and a pin in two places is a pin that moves in one of them —
+  `fuzz.yml` being the copy that never reports on a pull request.
+- Every sibling requirement in `Cargo.toml` names a **release** rather than a
+  floor: `version = "0.2"` is satisfied by 0.2.0 through 0.2.13, so the lock
+  alone decided what was built, and it sat seven patches behind while nothing
+  complained. `tests/scripts/test-sibling-pins-agree.sh` refuses a floor, a
+  dependency with no pin, a pin with no dependency, and a workflow that clones
+  a sibling itself.
 - **The probe is a library, and the binary is a front for it** (#16).
   `blk_probe::probe_path` is what the CLI runs; `blk_probe::probe_bytes` is
   the same probe over an image already in memory, backed by an `FsCoreDevice`
