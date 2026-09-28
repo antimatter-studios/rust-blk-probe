@@ -14,6 +14,18 @@ crates.io. Everything below is what the first release will contain.
 - **A partition-table probe CLI.** Reports the table type and partition layout
   of a device, and sniffs a filesystem on a device with no table at all.
 - A lint gate and CI.
+- **Every test tier is budgeted, logged and floored** (#17). `scripts/tier.sh`
+  runs a tier quietly — the transcript goes to `tmp/logs/<tier>.log`, a pass
+  prints one verdict line naming it, and a run that passed but printed more
+  than its measured budget exits 65. `scripts/test-floor.sh` fails a tier that
+  executed fewer tests than its floor, which is the failure a budget cannot
+  see: `cargo test` exits 0 on "0 passed". The wrapper itself is
+  `rust-fs-core`'s and is resolved at run time rather than committed here.
+- **A release-profile tier.** Every test used to run only against
+  `opt-level = 1` with `debug_assert!` bodies live and overflow checks on,
+  while the shipped binary is built with `opt-level = 3`, LTO and none of
+  those (#13).
+- CI uploads `tmp/logs/` as an artifact on every leg, with `if: always()`.
 - The toolchain is pinned, matching the sibling crates.
 - **One check gates a merge, and it stands for every job.** `ci.yml` grew a
   `ci-ok` job that `needs:` every other job in the workflow and fails when any

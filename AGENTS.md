@@ -169,12 +169,34 @@ name anywhere and none should be added.
 ## Running tests
 
 ```sh
-chore build      # debug build
-chore test       # the suite
-chore lint       # the agent-core check, the shell tests, fmt, clippy
+chore build          # debug build
+chore test           # every tier: test:debug then test:release
+chore test:debug     # one tier, quietly, under its budget and floor
+chore test:release   # the profile that ships, which the debug tier does not cover
+chore lint           # the agent-core check, the shell tests, fmt, clippy
 ```
 
-CI runs `test`, `fmt`, and `ci-ok` aggregates them.
+CI runs both tiers on each matrix leg, plus `fmt`, and `ci-ok` aggregates them.
+
+**Every tier is budgeted.** `scripts/tier.sh` runs it quietly: the transcript
+goes to `tmp/logs/<tier>.log`, a pass prints one verdict line naming that log,
+a failure prints one line naming the command's own status, and a run that
+passed but printed more than its budget exits **65**. `chore test -- --verbose`
+(or `OUTPUT_BUDGET_VERBOSE=1` — *not* `FLTH_VERBOSE`, which is not read)
+streams the run without lifting the budget. `OUTPUT_BUDGET_FAIL_TAIL=40` brings
+back the tail of a failure for whoever is watching.
+
+The budgets and the executed-test floors are in `chores.yml`, measured, in a
+table at the top of it — and repeated in `ci.yml`, because the workflow cannot
+read `chores.yml` without installing `chore` on three runners.
+`tests/scripts/test-tier-budgets-agree.sh` fails a pull request in which the
+two disagree.
+
+**There is no `scripts/output-budget.sh` here.** The wrapper is `rust-fs-core`'s
+and is resolved at run time — the `../rust-fs-core` sibling first, then cargo's
+answer for `am-fs-core` — verified by its `--version` string and copied into
+gitignored `tmp/` for the run. A copy that is present and answers something
+else is **fatal**, not a reason to look elsewhere.
 
 ## The test suite is almost entirely absent, and that is the first thing to fix
 

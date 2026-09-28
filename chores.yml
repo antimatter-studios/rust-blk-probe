@@ -24,6 +24,68 @@ chore_min_version: 0.6.0
 #
 # THE OUTPUT IS UNIVERSAL arm64 + x86_64, preserved from the script it
 # replaces. It is a single lipo'd file, not two.
+# QUIET BY DEFAULT, --verbose ON REQUEST, AND THE BUDGET IS A NUMBER (#17).
+#
+# Every test tier runs through scripts/tier.sh, which runs it quietly: the
+# whole transcript goes to tmp/logs/<tier>.log, a pass prints ONE verdict line
+# naming that log, a failure prints one line naming the command's own status,
+# and a run that passed but printed more than its budget exits 65 -- a status
+# that can be told apart from a failing suite.
+#
+# THIS SUITE IS NOT LOUD, AND THAT IS WHY THE CONTRACT IS CHEAP TO PUT IN NOW.
+# 65 lines for 40 tests is well inside what anybody would want to read. The
+# tiers that will not be are the ones coming: an oracle tier comparing this
+# probe against blkid (#13) and a fuzz gate (#16). Fitting a wrapper around a
+# 65-line suite is a twenty-minute change; fitting one around a 1,500-line
+# suite means measuring budgets against a run nobody has read in months.
+#
+#     tier      measured (2026-09-28)   budget          headroom, and why
+#     -------   ---------------------   -------------   -------------------
+#     debug     65 lines, 4,029 bytes   90 / 6,000      38% / 49%. A cold
+#                                                       `cargo clean && cargo
+#                                                       test --locked
+#                                                       --all-targets` on this
+#                                                       host: 22 `Compiling`
+#                                                       lines for the six
+#                                                       sibling crates and
+#                                                       their dependencies,
+#                                                       then 40 test lines.
+#                                                       The headroom is for a
+#                                                       runner that compiles a
+#                                                       different dependency
+#                                                       set, not for the suite
+#                                                       to grow into quietly.
+#     release   65 lines, 4,020 bytes   90 / 6,000      the same run with
+#                                                       --release; the same
+#                                                       shape, so the same
+#                                                       budget.
+#
+# RAISE A BUDGET WITH THE MEASUREMENT THAT JUSTIFIES IT, the way a floor is
+# raised, and raise it in .github/workflows/ci.yml in the same breath --
+# tests/scripts/test-tier-budgets-agree.sh fails a pull request where the two
+# files disagree. A budget nobody can breach measures nothing; one lowered to
+# fit a noisy run measures less than nothing.
+#
+# THE FLOORS ARE THE OTHER HALF. A budget fails a tier that PRINTS too much;
+# nothing fails a tier that printed almost nothing because it RAN almost
+# nothing. `cargo test` exits 0 on "0 passed; 0 failed", so a build that
+# produced no test binary and a full suite report the same green -- and the
+# quieter this repository gets, the less anybody would notice. Every tier
+# therefore carries an executed-test floor as well, checked by
+# scripts/test-floor.sh from the tier's own log.
+#
+# THERE IS NO scripts/output-budget.sh HERE, deliberately. The wrapper is
+# rust-fs-core's -- this crate already depends on am-fs-core -- and
+# scripts/tier.sh resolves it at run time from the sibling checkout or from
+# cargo's answer, verifies it by its `--version` string, and copies it into
+# gitignored tmp/ for the run. A committed copy is a copy that drifts; the
+# family had several, reached four different ways, with nothing comparing
+# them. A present-but-wrong copy is fatal rather than a reason to look
+# elsewhere, and tests/scripts/test-tier-wrapper.sh is what proves that.
+#
+# VERBOSE IS `OUTPUT_BUDGET_VERBOSE=1`, or `chore test:debug -- --verbose`. It
+# streams the run and does NOT lift the budget. It is not `FLTH_VERBOSE` any
+# more -- that name is simply not read, and setting it fails silently.
 vars:
   ARM_TRIPLE: aarch64-apple-darwin
   X86_TRIPLE: x86_64-apple-darwin
@@ -128,9 +190,31 @@ tasks:
           bash "$t"
         done
 
+  test:debug:
+    desc: The suite in the debug profile, quietly and under a measured budget
+    # THE SAME COMMAND CI RUNS, THROUGH THE SAME BUDGET AND THE SAME FLOOR, so
+    # a tier that has outgrown either says so here -- before the push --
+    # rather than in a CI log nobody was going to read.
+    cmds:
+      - 'bash scripts/tier.sh "test (debug)" debug 90 6000 -- cargo test --locked --all-targets'
+      - 'bash scripts/test-floor.sh debug 40'
+
+  test:release:
+    desc: The suite in the release profile, which is the one that ships
+    # THE PROFILE THE BINARY IS BUILT WITH WAS NEVER TESTED (#13). `binary`
+    # above builds --release, and [profile.release] here turns on opt-level 3
+    # and LTO; the debug tier runs with debug_assert! bodies live and overflow
+    # checks on. An offset computation that panics in one wraps in the other,
+    # and the one that wraps is the one a consumer runs.
+    cmds:
+      - 'bash scripts/tier.sh "test (release)" release 90 6000 -- cargo test --locked --release --all-targets'
+      - 'bash scripts/test-floor.sh release 40'
+
   test:
-    desc: Test suite
-    cmds: ['cargo test']
+    desc: Every test tier, exactly as CI runs them
+    cmds:
+      - task: test:debug
+      - task: test:release
 
   clean:
     desc: Remove this crate's cargo output
