@@ -1,6 +1,6 @@
 # rust-blk-probe
 
-`blk-probe` — open a disk image (raw, or a qcow2 / VHD / VHDX / VMDK
+`blk.probe` — open a disk image (raw, or a qcow2 / VHD / VHDX / VMDK
 container), walk its partition table, and emit JSON describing what is
 inside.
 
@@ -20,18 +20,23 @@ one component of the family with no fuzz target.
 ## The name
 
 The **repository and the crate** are both `rust-blk-probe`, matching every
-sibling. The **binary** is `blk-probe` (it was `diskprobe`), and that name is
-load-bearing: a consumer stages it at
-`lib/blk-probe/blk-probe` and invokes it by that name from several call
-sites rather than resolving it on PATH. Renaming
-`[[bin]]` breaks the app without breaking the build — the compile succeeds
-and the app reports *"blk-probe binary not found"* at runtime.
+sibling. The **tool** is `blk.probe`, dotted the way `mkfs.ext4` is, and it has no
+hyphenated spelling.
+
+Cargo refuses a dot in a target name, so the `[[bin]]` target is `blk_probe`
+and `scripts/stage-binary.sh` renames it on the way out: what `chore binary`
+leaves in `dist/` is `blk.probe`, and nothing named after the cargo target
+is shipped. The name is load-bearing: a consumer that stages the file and
+invokes it by name, rather than resolving it on PATH, builds cleanly and
+then fails at run time if the two drift.
+`tests/scripts/test-staged-binary-name.sh` builds the target, stages it and
+runs what was staged.
 
 ## Usage
 
 ```
-blk-probe <path>
-blk-probe <path> --container=qcow2|vhd|vhdx|vmdk
+blk.probe <path>
+blk.probe <path> --container=qcow2|vhd|vhdx|vmdk
 ```
 
 With `--container` omitted the container kind is auto-detected from the magic
@@ -50,7 +55,7 @@ Exit codes:
 
 A disk with **no** partition table is not exit 3. That is a normal answer,
 described below, and it exits 0. Exit 3 is the opposite case: a table is
-there and `blk-probe` could not read it — a CRC mismatch, a truncated
+there and `blk.probe` could not read it — a CRC mismatch, a truncated
 table, an I/O failure — and nothing is written to stdout.
 
 ## Output
@@ -129,8 +134,9 @@ chore test
 ```
 
 `chore binary` is the whole interface a consumer needs: give it an output
-directory and it leaves a single `blk-probe` there. It owns the two target
-triples, the release profile and the `lipo` step, so nothing outside this
+directory and it leaves a single `blk.probe` there. It owns the two target
+triples, the release profile, the `lipo` step and the rename from the cargo
+target, so nothing outside this
 repository has to know them.
 
 ## Dependencies

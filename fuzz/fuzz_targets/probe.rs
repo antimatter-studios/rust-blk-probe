@@ -10,7 +10,7 @@
 //! So the target is the whole probe over arbitrary bytes, not a header
 //! parser: the interesting failures are in what the second step does with
 //! what the first step decided.
-use blk_probe_fuzz::probe;
+use rust_blk_probe_fuzz::probe;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

@@ -1,6 +1,6 @@
 # Working in rust-blk-probe (agent guide)
 
-`blk-probe` — one command-line binary that opens a disk image (raw, or a
+`blk.probe` — one command-line binary that opens a disk image (raw, or a
 qcow2 / VHD / VHDX / VMDK container), walks its partition table and writes JSON
 describing what is inside to stdout. Every other sibling in this family hands
 back a static archive and headers; this one hands back an executable that a
@@ -162,9 +162,12 @@ built on `am-fs-core` and `am-partitions`. It is a **binary**, not a staticlib �
 `chore binary` builds it, and there is no `staticlib` task, because nothing
 links this into the app.
 
-The binary is named `blk-probe`. It was renamed from `diskprobe` in #11, and
-the consumer side landed in lockstep; there is no fallback to the old
-name anywhere and none should be added.
+The tool is named `blk.probe`. It was `diskprobe` until #11, then a
+hyphenated name until #36, and each consumer side landed in lockstep; there
+is no fallback to an old name anywhere and none should be added. Cargo
+refuses a dot in a target name, so the `[[bin]]` is `blk_probe` and
+`scripts/stage-binary.sh` renames it when `chore binary` stages it —
+`tests/scripts/test-staged-binary-name.sh` holds both halves.
 
 ## Running tests
 

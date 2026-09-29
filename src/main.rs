@@ -1,4 +1,4 @@
-//! `blk-probe` — the command-line front of the probe.
+//! `blk.probe` — the command-line front of the probe.
 //!
 //! Everything this program does is in the library beside it: [`probe_path`]
 //! opens a disk image (raw, or a qcow2 / VHD / VHDX / VMDK container), walks
@@ -14,8 +14,8 @@
 //! image at all (#16).
 //!
 //! Usage:
-//!   blk-probe <path>
-//!   blk-probe <path> --container=qcow2|vhd|vhdx|vmdk
+//!   blk.probe <path>
+//!   blk.probe <path> --container=qcow2|vhd|vhdx|vmdk
 //!
 //! Exit codes:
 //!   0  — JSON written to stdout
@@ -31,7 +31,7 @@
 
 use blk_probe::{probe_path, Container, ProbeError};
 
-const USAGE: &str = "usage: blk-probe <path> [--container=qcow2|vhd|vhdx|vmdk]";
+const USAGE: &str = "usage: blk.probe <path> [--container=qcow2|vhd|vhdx|vmdk]";
 
 // The exit-code table, named. It is published in three places — the module
 // doc-comment above, the README, and here — and the point of naming the
@@ -41,7 +41,7 @@ const EXIT_OPEN_ERROR: i32 = 2;
 const EXIT_PROBE_ERROR: i32 = 3;
 
 fn die(code: i32, msg: &str) -> ! {
-    eprintln!("blk-probe: {msg}");
+    eprintln!("blk.probe: {msg}");
     std::process::exit(code);
 }
 
@@ -75,7 +75,7 @@ fn main() {
             // they were printed when this was one function: a reader watching
             // stderr sees the warning and then the line it qualifies.
             for warning in &report.warnings {
-                eprintln!("blk-probe: {warning}");
+                eprintln!("blk.probe: {warning}");
             }
             println!("{}", report.json);
         }

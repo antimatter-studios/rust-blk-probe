@@ -20,7 +20,7 @@ cd "$here"
 targets=$(sed -n 's/^name = "\(.*\)"$/\1/p' fuzz/Cargo.toml | tail -n +2)
 [ -n "$targets" ] || { echo "no fuzz targets declared in fuzz/Cargo.toml" >&2; exit 1; }
 
-scratch="$(mktemp -d "${TMPDIR:-/tmp}/blk-probe-fuzz-scratch.XXXXXX")"
+scratch="$(mktemp -d "${TMPDIR:-/tmp}/blk.probe-fuzz-scratch.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
 
 failed=""

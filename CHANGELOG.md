@@ -88,6 +88,13 @@ crates.io. Everything below is what the first release will contain.
 
 ### Changed
 
+- **The tool is `blk.probe` (breaking).** It was `blk-probe`. `chore binary`
+  now leaves `dist/blk.probe`, `chore artifact` prints that path, usage reads
+  `usage: blk.probe …` and error output is prefixed `blk.probe:`. Cargo
+  refuses a dot in a target name, so the `[[bin]]` target is `blk_probe` and
+  the new `scripts/stage-binary.sh` renames it when staging; nothing named
+  `blk-probe` is built. **A consumer that stages or runs the tool by name must
+  change with it.** The fuzz crate is renamed `rust-blk-probe-fuzz` to match.
 - **The package is `rust-blk-probe` and the binary is `blk-probe`.** Both were
   `diskprobe`. The package now matches its repository, as every sibling will,
   and the binary matches the package. **A consumer that stages or runs the

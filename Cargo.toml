@@ -13,15 +13,21 @@ description = "CLI: open a disk image (raw or qcow2/vhd/vhdx/vmdk container), pr
 # `main.rs` (#16).
 #
 # THE LIB NAME IS `blk_probe` AND IS SET EXPLICITLY. Left to cargo it would be
-# `rust_blk_probe`, after the package; the binary, the staged path a consumer
-# invokes and the crate a test says `use blk_probe::` to are all the same
-# word, and the package name is the odd one out.
+# `rust_blk_probe`, after the package; the binary target and the crate a test
+# says `use blk_probe::` to are the same word, and the package name is the
+# odd one out.
 [lib]
 name = "blk_probe"
 path = "src/lib.rs"
 
+# THE TOOL IS `blk.probe`, AND THIS TARGET IS `blk_probe` ONLY BECAUSE CARGO
+# REFUSES A DOT in a target name ("invalid character '.' in crate name").
+# scripts/stage-binary.sh renames it on the way out, so the underscore never
+# reaches anybody who runs the tool, and there is no hyphenated spelling at
+# all. tests/scripts/test-staged-binary-name.sh builds this target, stages
+# it and runs what was staged.
 [[bin]]
-name = "blk-probe"
+name = "blk_probe"
 path = "src/main.rs"
 
 # EACH REQUIREMENT NAMES A RELEASE, NOT A FLOOR (#27). `version = "0.2"` is
