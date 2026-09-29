@@ -99,8 +99,8 @@ LBA, 2 ends past the last usable LBA, 4 overlaps another entry. 0 means none.
 A non-zero value is reported, not refused.
 
 `fs_kind` is one of `ext2`, `ext3`, `ext4`, `ntfs`, `fat32`, `fat16`,
-`exfat`, `hfs_plus`, `apfs`, `linux_swap`, `iso9660`, `squashfs`, `unknown`
-or `error`.
+`exfat`, `hfs_plus`, `apfs`, `linux_swap`, `iso9660`, `squashfs`, `xfs`,
+`btrfs`, `erofs`, `unknown` or `error`.
 
 A whole-device filesystem with no partition table reports `"table": "none"`,
 an empty `partitions` array, and a `device_fs_kind` field naming what was

@@ -50,7 +50,7 @@
 //!         "length": 268435456,              // what the table claims
 //!         "available_length": 268435456,    // how much of it the device holds
 //!         "issues": 0,                      // am-partitions PARTITIONS_ENTRY_* bits; 0 = none
-//!         "fs_kind": "ext2"|"ext3"|"ext4"|"ntfs"|"fat32"|"fat16"|"exfat"|"hfs_plus"|"apfs"|"linux_swap"|"iso9660"|"squashfs"|"unknown"|"error",
+//!         "fs_kind": "ext2"|"ext3"|"ext4"|"ntfs"|"fat32"|"fat16"|"exfat"|"hfs_plus"|"apfs"|"linux_swap"|"iso9660"|"squashfs"|"xfs"|"btrfs"|"erofs"|"unknown"|"error",
 //!         "fs_kind_error": "read failed: ..", // only when fs_kind is "error"
 //!         "type_byte": 131,                 // MBR partition type byte (0 for GPT)
 //!         "type_guid": "0fc63daf-8483-...", // GPT type GUID (zeros for MBR)
@@ -64,9 +64,9 @@ use std::ffi::{CStr, CString};
 use std::ptr;
 
 use fs_core::ffi::{
-    fs_core_device_close, fs_core_device_from_callbacks, fs_core_device_size_bytes,
-    fs_core_file_open, fs_core_last_error_message, FsCoreCallbackCfg, FsCoreDevice,
-    FsCoreErrorCode,
+    fs_core_device_close, fs_core_device_from_callbacks, fs_core_device_read_at,
+    fs_core_device_size_bytes, fs_core_file_open, fs_core_last_error_message, FsCoreCallbackCfg,
+    FsCoreDevice, FsCoreErrorCode,
 };
 use partitions::capi::{
     partitions_count, partitions_get, partitions_list_free, partitions_probe, partitions_sniff,
@@ -88,6 +88,8 @@ use vhd as _;
 use vhdx as _;
 #[allow(unused_imports)]
 use vmdk as _;
+
+pub mod superblock;
 
 /// The exact text `partitions::Error::NoPartitionTable` renders. See
 /// [`classify_probe`] for why matching on a message, rather than on a
@@ -441,6 +443,41 @@ fn sniff_outcome(code: i32, detail: impl FnOnce() -> String) -> Result<&'static 
     }
 }
 
+/// Finish a sniff `am-partitions` answered: where it recognised nothing, ask
+/// [`superblock::identify`] about the `available` bytes at `start`.
+///
+/// An answer it gave -- including a failure -- is passed through untouched,
+/// so the superblock rules can only ever turn `"unknown"` into a name.
+///
+/// # Safety
+///
+/// `dev` must be a live `FsCoreDevice` handle.
+unsafe fn sniff_superblocks(
+    dev: *mut FsCoreDevice,
+    start: u64,
+    available: u64,
+    sniffed: Result<&'static str, String>,
+) -> Result<&'static str, String> {
+    let unknown = fs_kind_label(FsKindCode::Unknown as i32);
+    if sniffed != Ok(unknown) {
+        return sniffed;
+    }
+    let mut read_at = |offset: u64, buf: &mut [u8]| -> Result<(), String> {
+        let at = start
+            .checked_add(offset)
+            .ok_or_else(|| format!("offset {start} + {offset} overflows"))?;
+        match unsafe { fs_core_device_read_at(dev, at, buf.as_mut_ptr(), buf.len()) } {
+            FsCoreErrorCode::Ok => Ok(()),
+            rc => Err(format!(
+                "reading {} bytes at {at} for a superblock failed with {rc:?}: {}",
+                buf.len(),
+                last_error()
+            )),
+        }
+    };
+    Ok(superblock::identify(available, &mut read_at)?.unwrap_or(unknown))
+}
+
 /// Render the `,"<key>":"<reason>"` fragment that accompanies a
 /// `SNIFF_FAILED_LABEL`, or nothing at all when the sniff succeeded.
 /// The four keys every blk.probe document opens with, in the order the
@@ -770,7 +807,9 @@ pub unsafe fn probe_device(
             // No partition table -- a whole-device filesystem. That is an
             // ordinary disk and an ordinary answer, not a failure.
             let sniffed = unsafe { partitions_sniff_device(dev, dev_size) };
-            let (dev_fs_label, dev_fs_error) = match sniff_outcome(sniffed, last_error) {
+            let sniffed =
+                unsafe { sniff_superblocks(dev, 0, dev_size, sniff_outcome(sniffed, last_error)) };
+            let (dev_fs_label, dev_fs_error) = match sniffed {
                 Ok(label) => (label, None),
                 Err(detail) => {
                     warnings.push(format!("whole-device filesystem sniff failed: {detail}"));
@@ -811,7 +850,17 @@ pub unsafe fn probe_device(
         // `partitions_sniff` fills the kind in place, but `info` is already a
         // copy, so the returned code is what is read.
         let sniffed = unsafe { partitions_sniff(list, i) };
-        let (fs_label, fs_error) = match sniff_outcome(sniffed, last_error) {
+        // `available_length`, not `length`: the superblock rules read only
+        // what the device holds of the partition.
+        let sniffed = unsafe {
+            sniff_superblocks(
+                dev,
+                info.start,
+                info.available_length,
+                sniff_outcome(sniffed, last_error),
+            )
+        };
+        let (fs_label, fs_error) = match sniffed {
             Ok(label) => (label, None),
             Err(detail) => {
                 warnings.push(format!("partition {i}: filesystem sniff failed: {detail}"));
