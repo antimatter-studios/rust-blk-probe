@@ -146,6 +146,9 @@ fn blkid_and_this_probe_agree_on_every_committed_image() {
         ("gpt-fixed.vhd", Some("gpt"), None),
         ("ext4.img", None, Some("ext4")),
         ("squashfs.img", None, Some("squashfs")),
+        ("xfs-head.img", None, Some("xfs")),
+        ("btrfs-head.img", None, Some("btrfs")),
+        ("erofs.img", None, Some("erofs")),
         // Containers: nothing for blkid, a whole disk for this crate.
         ("gpt.qcow2", None, None),
         ("gpt.vmdk", None, None),

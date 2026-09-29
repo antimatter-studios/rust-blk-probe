@@ -241,7 +241,8 @@ finds in the raw original. That is the reason the crate exists, written as a
 test rather than as a paragraph.
 
 `scripts/make-fuzz-corpus.sh` rebuilds that corpus from images `sgdisk`,
-`sfdisk`, `mkfs.ext4`, `mksquashfs` and `qemu-img` wrote. Those images are
+`sfdisk`, `mkfs.ext4`, `mksquashfs`, `mkfs.xfs`, `mkfs.btrfs`, `mkfs.erofs`
+and `qemu-img` wrote. Those images are
 also the **oracle**: `every_committed_image_is_read_as_what_the_tool_that_
 wrote_it_says` holds each one to the container and the table its maker put
 there, on a machine with none of those tools installed. A seed that stopped

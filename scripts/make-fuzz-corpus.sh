@@ -4,7 +4,8 @@
 # WHY THE SEEDS ARE OTHER PEOPLE'S IMAGES. This crate decides what an unknown
 # device IS, and whatever it decides sends the bytes to some other parser. A
 # corpus this crate wrote would only prove it agrees with itself; `sgdisk`,
-# `sfdisk`, `mkfs.ext4`, `mksquashfs` and `qemu-img` have no stake in our
+# `sfdisk`, `mkfs.ext4`, `mksquashfs`, `mkfs.xfs`, `mkfs.btrfs`, `mkfs.erofs`
+# and `qemu-img` have no stake in our
 # reading of the formats, so a seed that stops probing is evidence about us.
 #
 # The same images are the oracle in tests/fuzz_decoders.rs: every committed
@@ -26,7 +27,8 @@ trap 'rm -rf "$work"' EXIT
 
 # NOTHING SKIPS. A missing tool fails this script naming the tool, rather
 # than producing a corpus that is quietly one seed short.
-for tool in sgdisk sfdisk mkfs.ext4 mksquashfs qemu-img truncate; do
+for tool in sgdisk sfdisk mkfs.ext4 mksquashfs mkfs.xfs mkfs.btrfs mkfs.erofs \
+    qemu-img truncate; do
     command -v "$tool" >/dev/null || {
         echo "$tool not found; it writes part of the corpus" >&2
         exit 1
@@ -99,6 +101,32 @@ mkfs.ext4 -q -F -L probe-ext4 -U 11111111-2222-3333-4444-555555555555 \
 mkdir -p "$work/empty"
 mksquashfs "$work/empty" "$probe/squashfs.img" -noappend -no-progress \
     -all-time 0 -mkfs-time 0 >/dev/null 2>&1
+
+# --- XFS, Btrfs and EROFS, which this crate identifies itself -------------
+# These three are recognised from their superblocks in src/superblock.rs,
+# not by am-partitions, so they need seeds of their own for the gate to
+# mutate. Every UUID and timestamp is pinned, as above.
+#
+# XFS AND BTRFS ARE HEADS, because neither mkfs writes anything small:
+# mkfs.xfs refuses under 300 MiB and mkfs.btrfs under about 114 MiB. The XFS
+# head is its first 4 KiB -- the superblock and the three AG headers behind
+# it. The Btrfs head is 1 MiB, not the 68 KiB that reaches past its
+# superblock, because blkid refuses to call anything shorter than 1 MiB a
+# Btrfs, and tests/oracle_tools.rs holds these exact files to blkid's answer.
+# Nearly all of it is zeroes and compresses to about 1 KiB.
+truncate -s 320M "$work/xfs.img"
+mkfs.xfs -q -f -m uuid=11111111-2222-3333-4444-555555555555 "$work/xfs.img"
+head -c 4096 "$work/xfs.img" > "$probe/xfs-head.img"
+
+truncate -s 128M "$work/btrfs.img"
+mkfs.btrfs -q -f -U 11111111-2222-3333-4444-555555555555 \
+    --device-uuid 22222222-3333-4444-5555-666666666666 "$work/btrfs.img"
+head -c 1048576 "$work/btrfs.img" > "$probe/btrfs-head.img"
+
+# EROFS is built from a directory, so an empty one makes a whole image of one
+# block. The block size is pinned because it defaults to the page size.
+mkfs.erofs --quiet -b 4096 -T 0 -U 11111111-2222-3333-4444-555555555555 \
+    "$probe/erofs.img" "$work/empty"
 
 # --- the spliced corpus ----------------------------------------------------
 # The second target's input is a selector byte followed by an image: the byte
