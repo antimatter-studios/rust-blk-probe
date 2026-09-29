@@ -35,8 +35,9 @@ path = "src/main.rs"
 # ../rust-*; the requirement is consulted when publishing and nowhere else.
 # The lock beside this file is resolved against the tagged siblings, and
 # src/lib.rs zero-initialises `PartitionInfo` rather than naming its fields,
-# so it builds against am-partitions 0.4.1 and against its `main` alike.
-# Reporting `slot` and `issues` waits for the 0.5.0 that carries them (#28).
+# so a field added on am-partitions' `main` between releases does not stop
+# this building. am-partitions moved to 0.5.0 in lockstep with the release
+# that added `slot`, `issues` and `available_length` (#28).
 #
 # The refs CI checks out are in scripts/clone-siblings.sh, and
 # tests/scripts/test-sibling-pins-agree.sh fails if this list and that one
@@ -47,7 +48,7 @@ am-img-qcow2 = { path = "../rust-img-qcow2", version = "0.4.5" }
 am-img-vhd = { path = "../rust-img-vhd", version = "0.4.0" }
 am-img-vhdx = { path = "../rust-img-vhdx", version = "0.4.0" }
 am-img-vmdk = { path = "../rust-img-vmdk", version = "0.3.5" }
-am-partitions = { path = "../rust-partitions", version = "0.4.1" }
+am-partitions = { path = "../rust-partitions", version = "0.5.0" }
 
 [profile.release]
 opt-level = 3

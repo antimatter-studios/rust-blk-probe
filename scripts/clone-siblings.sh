@@ -31,7 +31,7 @@ SIBLINGS=(
     "rust-img-vhd     v0.4.0"
     "rust-img-vhdx    v0.4.0"
     "rust-img-vmdk    v0.3.5"
-    "rust-partitions  v0.4.1"
+    "rust-partitions  v0.5.0"
 )
 
 # `--pins` prints the list and clones nothing, so

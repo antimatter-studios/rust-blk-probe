@@ -45,8 +45,11 @@
 //!     "partitions": [
 //!       {
 //!         "index": 0,
+//!         "slot": 0,                        // zero-based table slot; absent when it has none
 //!         "start": 1048576,
-//!         "length": 268435456,
+//!         "length": 268435456,              // what the table claims
+//!         "available_length": 268435456,    // how much of it the device holds
+//!         "issues": 0,                      // am-partitions PARTITIONS_ENTRY_* bits; 0 = none
 //!         "fs_kind": "ext2"|"ext3"|"ext4"|"ntfs"|"fat32"|"fat16"|"exfat"|"hfs_plus"|"apfs"|"linux_swap"|"iso9660"|"squashfs"|"unknown"|"error",
 //!         "fs_kind_error": "read failed: ..", // only when fs_kind is "error"
 //!         "type_byte": 131,                 // MBR partition type byte (0 for GPT)
@@ -796,10 +799,10 @@ pub unsafe fn probe_device(
         // out-parameter that `partitions_get` overwrites in full, so its
         // starting value carries no meaning -- but a literal has to name
         // every field, and `am-partitions` adds fields between releases
-        // (`slot` and `issues` are on its `main`, not in v0.4.1). A
-        // literal therefore failed to compile against whichever side it
-        // was not written for (#14). All-zero is a valid value for every
-        // field: integers, byte arrays, and a null `label`.
+        // (0.5.0 added `slot`, `issues` and `available_length`). A literal
+        // failed to compile against whichever side it was not written for
+        // (#14), and would again at the next field. All-zero is a valid
+        // value for every field: integers, byte arrays, and a null `label`.
         let mut info: PartitionInfo = unsafe { std::mem::zeroed() };
         let grc = unsafe { partitions_get(list, i, &mut info) };
         if grc != FsCoreErrorCode::Ok {
@@ -829,15 +832,26 @@ pub unsafe fn probe_device(
             None
         };
 
-        let mut entry = format!(
-            "{{\"index\":{},\"start\":{},\"length\":{},\"fs_kind\":\"{}\",\"type_byte\":{},\"type_guid\":\"{}\"",
-            i,
+        let mut entry = format!("{{\"index\":{i}");
+        // `slot` is -1 for an entry with no slot in an on-disk table, and is
+        // then left out, as `label` is when there is none. It is not `i`: a
+        // table with a hole in it is routine (#28).
+        if info.slot >= 0 {
+            entry.push_str(&format!(",\"slot\":{}", info.slot));
+        }
+        // `length` is what the table claims; `available_length` is how much
+        // of it the device holds, and is what a buffer is sized with. The two
+        // differ on an image that stops before its table does (#28).
+        entry.push_str(&format!(
+            ",\"start\":{},\"length\":{},\"available_length\":{},\"issues\":{},\"fs_kind\":\"{}\",\"type_byte\":{},\"type_guid\":\"{}\"",
             info.start,
             info.length,
+            info.available_length,
+            info.issues,
             fs_label,
             info.type_byte,
             fmt_guid(&info.type_guid),
-        );
+        ));
         entry.push_str(&sniff_error_field("fs_kind_error", fs_error.as_deref()));
         if let Some(l) = label_str {
             entry.push_str(&format!(",\"label\":\"{}\"", json_escape(&l)));
