@@ -21,7 +21,7 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-work="$(mktemp -d "${TMPDIR:-/tmp}/blk-probe-fuzz-corpus.XXXXXX")"
+work="$(mktemp -d "${TMPDIR:-/tmp}/blk.probe-fuzz-corpus.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
 
 # NOTHING SKIPS. A missing tool fails this script naming the tool, rather

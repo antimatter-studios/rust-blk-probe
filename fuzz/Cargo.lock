@@ -58,14 +58,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1"
 
 [[package]]
-name = "blk-probe-fuzz"
-version = "0.0.0"
-dependencies = [
- "libfuzzer-sys",
- "rust-blk-probe",
-]
-
-[[package]]
 name = "cc"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -181,6 +173,14 @@ dependencies = [
  "am-img-vhdx",
  "am-img-vmdk",
  "am-partitions",
+]
+
+[[package]]
+name = "rust-blk-probe-fuzz"
+version = "0.0.0"
+dependencies = [
+ "libfuzzer-sys",
+ "rust-blk-probe",
 ]
 
 [[package]]

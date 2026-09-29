@@ -1,15 +1,15 @@
-//! blk-probe — open a disk image (raw or container), walk its partition
+//! blk.probe — open a disk image (raw or container), walk its partition
 //! table, emit JSON describing what's inside.
 //!
-//! This is the library. [`probe_path`] is what the `blk-probe` binary runs,
+//! This is the library. [`probe_path`] is what the `blk.probe` binary runs,
 //! and [`probe_bytes`] is the same probe over an image already in memory —
 //! container detection, the container reader, the partition walk and the
 //! per-partition sniff, in the order a hostile image meets them. The binary
 //! adds argument parsing and the exit codes below, and nothing else.
 //!
 //! Usage:
-//!   blk-probe <path>
-//!   blk-probe <path> --container=qcow2|vhd|vhdx|vmdk
+//!   blk.probe <path>
+//!   blk.probe <path> --container=qcow2|vhd|vhdx|vmdk
 //!
 //! When `--container` is omitted, container kind is auto-detected from
 //! the magic at offset 0 (or the trailing 512-byte footer for fixed
@@ -443,7 +443,7 @@ fn sniff_outcome(code: i32, detail: impl FnOnce() -> String) -> Result<&'static 
 
 /// Render the `,"<key>":"<reason>"` fragment that accompanies a
 /// `SNIFF_FAILED_LABEL`, or nothing at all when the sniff succeeded.
-/// The four keys every blk-probe document opens with, in the order the
+/// The four keys every blk.probe document opens with, in the order the
 /// JSON contract in this module's documentation publishes them.
 ///
 /// There were two writers, each with its own format string, sharing
@@ -888,7 +888,7 @@ mod tests {
     impl TempImage {
         fn new(name: &str, bytes: &[u8]) -> Self {
             let mut path = std::env::temp_dir();
-            path.push(format!("blk-probe-test-{}-{name}", std::process::id()));
+            path.push(format!("blk.probe-test-{}-{name}", std::process::id()));
             std::fs::write(&path, bytes).expect("write temp image");
             TempImage(path)
         }
@@ -1484,7 +1484,7 @@ mod tests {
     #[test]
     fn auto_detect_reports_the_io_error_when_the_file_cannot_be_opened() {
         let mut missing = std::env::temp_dir();
-        missing.push("blk-probe-test-no-such-image");
+        missing.push("blk.probe-test-no-such-image");
         let _ = std::fs::remove_file(&missing);
         let err = auto_detect_container(missing.to_str().unwrap()).unwrap_err();
         assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
