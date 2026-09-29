@@ -1,0 +1,103 @@
+name: release
+
+# A pushed version tag publishes the release tarball: bin/blk.probe and
+# LICENSE, for darwin-arm64, with a build-provenance attestation, attached to
+# the GitHub release for the tag. Nothing is published to crates.io -- this
+# crate is a tool, and the tarball is what is consumed.
+#
+# TAGS ARE PUSHED BY A PERSON. Nothing in this repository creates one.
+#
+# It owns almost nothing itself. The gate is ci.yml, called whole, so a tag is
+# held to exactly what a pull request is held to; and the tarball is written
+# and checked by the same scripts/package.sh and scripts/check-package.sh
+# ci.yml's `package` job runs on every pull request -- so the first run of
+# this workflow is not the first time the packaging ran.
+#
+# Verify a downloaded tarball with:
+#   gh attestation verify rust-blk-probe-<version>-darwin-arm64.tar.gz \
+#     --repo antimatter-studios/rust-blk-probe \
+#     --signer-workflow antimatter-studios/rust-blk-probe/.github/workflows/release.yml
+#
+# NOT A REQUIRED CHECK AND MUST NEVER BECOME ONE: it has no `pull_request:`
+# trigger, so it can never report on a pull request, and a required context
+# that never reports reads to GitHub as permanently pending.
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+jobs:
+  # A tag that disagrees with Cargo.toml would publish a tarball whose name
+  # and contents name different versions.
+  verify-tag:
+    name: verify tag matches Cargo.toml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: compare tag against the manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(grep -m1 '^version = ' Cargo.toml | sed 's/version = //; s/"//g')"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag v$tag does not match Cargo.toml version $version"
+            exit 1
+          fi
+          echo "tag and Cargo.toml agree on $version"
+
+  gate:
+    name: branch gate
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: publish the darwin-arm64 tarball
+    needs: [verify-tag, gate]
+    runs-on: macos-latest
+    # The only job with a write grant, because it is the only one that needs
+    # one: an OIDC token to sign the attestation, the attestation store, and
+    # the release the tarball is attached to.
+    permissions:
+      id-token: write
+      attestations: write
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: clone the sibling crates
+        shell: bash
+        run: bash scripts/clone-siblings.sh
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+      - name: build the binary the tarball carries
+        run: cargo build --locked --release --bin blk_probe
+      - name: package it, and check what was packaged
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          tarball="$(bash scripts/package.sh target/release/blk_probe "${GITHUB_REF_NAME#v}" darwin-arm64 dist)"
+          bash scripts/check-package.sh "$tarball"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ steps.package.outputs.tarball }}
+
+      # Idempotent: a re-run of a tag whose upload succeeded replaces the
+      # asset rather than failing on it.
+      - name: attach the tarball to the GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TARBALL: ${{ steps.package.outputs.tarball }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" \
+              --notes "See CHANGELOG.md. The tarball holds bin/blk.probe and LICENSE, with a build-provenance attestation from this repository's release workflow."
+          fi
+          gh release upload "$GITHUB_REF_NAME" "$TARBALL" "$TARBALL.sha256" --clobber

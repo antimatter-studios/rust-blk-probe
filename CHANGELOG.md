@@ -11,6 +11,15 @@ crates.io. Everything below is what the first release will contain.
 
 ### Added
 
+- **A release tarball, built on every pull request and published with
+  build provenance on a tag** (#36). `scripts/package.sh` writes
+  `rust-blk-probe-<version>-darwin-arm64.tar.gz` holding `bin/blk.probe` and
+  `LICENSE`, and `scripts/check-package.sh` refuses one with any other layout,
+  a checksum that does not match, a binary for another platform, or a probe
+  that does not run. `ci.yml`'s `package` job runs both on every pull request;
+  `release.yml` runs them on a `v*.*.*` tag after the whole of `ci.yml`, then
+  attests the tarball and attaches it to the GitHub release.
+
 - **XFS, Btrfs and EROFS are identified** (#36). They came back `unknown`:
   `am-partitions`' sniff has no kind for any of the three, and its window ends
   where the Btrfs superblock begins. `src/superblock.rs` recognises each from

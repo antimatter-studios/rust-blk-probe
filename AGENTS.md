@@ -296,6 +296,21 @@ Judging mergeability from check **conclusions** is unreliable: an in-progress
 no conclusion field at all. Read `mergeStateStatus` and
 `statusCheckRollup.state`.
 
+## Releases
+
+A pushed `v*.*.*` tag runs `.github/workflows/release.yml`: it checks that the tag
+matches `Cargo.toml`, runs the whole of `ci.yml` as its gate, then builds
+`rust-blk-probe-<version>-darwin-arm64.tar.gz` (`bin/blk.probe` and `LICENSE`),
+attests its build provenance and attaches it and its `.sha256` to the GitHub
+release. Nothing goes to crates.io.
+
+**Tags are pushed by the owner, not by an agent.** What an agent can break is
+the packaging, and that is why it is not tag-only: `scripts/package.sh` writes
+the tarball, `scripts/check-package.sh` refuses one with the wrong layout,
+checksum or platform, or whose binary does not run, and `ci.yml`'s `package`
+job runs both on every pull request. `tests/scripts/test-package.sh` proves the
+check refuses each of those.
+
 ## Never grow a shared tool to solve a problem here
 
 **Never grow a shared tool to solve a problem in this repository.** `chore` is

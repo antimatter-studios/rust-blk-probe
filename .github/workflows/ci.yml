@@ -10,6 +10,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # release.yml calls this whole workflow as its gate, so a tag is held to
+  # exactly what a pull request is held to -- one definition, not two copies
+  # that drift.
+  workflow_call:
 
 env:
   CARGO_TERM_COLOR: always
@@ -162,6 +166,42 @@ jobs:
             bash "$t"
           done
 
+  # THE TARBALL A RELEASE WOULD PUBLISH, BUILT ON EVERY PULL REQUEST. The
+  # release path runs only on a tag, which is the one moment nobody wants to
+  # find out that packaging broke. So the same two scripts release.yml runs --
+  # scripts/package.sh, then scripts/check-package.sh -- run here, on the
+  # platform the release builds for, over the release profile that ships.
+  # Nothing is attested or uploaded from a pull request; the tarball is kept
+  # as an artifact so it can be inspected.
+  package:
+    name: package / darwin-arm64
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: clone the sibling crates
+        shell: bash
+        run: bash scripts/clone-siblings.sh
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.95.0
+      - uses: Swatinem/rust-cache@v2
+      - name: build the binary the tarball carries
+        run: cargo build --locked --release --bin blk_probe
+      - name: package it, and check what was packaged
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(grep -m1 '^version = ' Cargo.toml | sed 's/version = //; s/"//g')"
+          tarball="$(bash scripts/package.sh target/release/blk_probe "$version" darwin-arm64 dist)"
+          bash scripts/check-package.sh "$tarball"
+      - name: keep the tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: tarball-darwin-arm64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
   ci-ok:
     name: ci-ok
     # THE ONE REQUIRED CHECK (#18). Branch protection names this job and no
@@ -181,12 +221,14 @@ jobs:
     #          edit here and none in `.github-guard`.
     #   fmt    `cargo fmt --check`, once: the same answer on every platform,
     #          so it is not a matrix leg.
+    #   package  the release tarball for darwin-arm64, built and checked the
+    #          way release.yml builds and checks it.
     #
     # `if: always()` is what makes it a gate rather than a summary. Without
     # it a cancelled or skipped dependency leaves this job skipped too, and a
     # skipped required check is indistinguishable from an absent one.
     if: always()
-    needs: [test, fmt]
+    needs: [test, fmt, package]
     runs-on: ubuntu-latest
     steps:
       - name: every gating job must have concluded success
