@@ -36,7 +36,9 @@ platform="$(sed -E 's/^rust-blk-probe-.*-([a-z]+-[a-z0-9_]+)\.tar\.gz$/\1/' <<<"
     refuse "does not match $name.sha256"
 
 # --- the layout: exactly these entries --------------------------------------
-entries="$(tar -tzf "$tarball" | sed 's|^\./||; /^$/d' | sort | tr '\n' ' ')"
+# LC_ALL=C: the order is compared as text, and a UTF-8 locale sorts
+# `LICENSE` after `bin/` where the C locale sorts it before.
+entries="$(tar -tzf "$tarball" | sed 's|^\./||; /^$/d' | LC_ALL=C sort | tr '\n' ' ')"
 want="LICENSE bin/ bin/blk.probe "
 [[ "$entries" == "$want" ]] || refuse "holds [${entries% }], expected [${want% }]"
 
