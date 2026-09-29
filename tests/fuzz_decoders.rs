@@ -262,16 +262,27 @@ const WHAT_THE_TOOLS_WROTE: &[(&str, &str, &str, Option<usize>)] = &[
     // are whole-device filesystems, and `blkid` calls them ext4 and squashfs.
     ("ext4.img", "raw", "none", Some(0)),
     ("squashfs.img", "raw", "none", Some(0)),
+    // The heads of an XFS and a Btrfs, and a whole EROFS: the three this
+    // crate identifies from their superblocks rather than through
+    // am-partitions. Heads, because neither mkfs writes anything small.
+    ("xfs-head.img", "raw", "none", Some(0)),
+    ("btrfs-head.img", "raw", "none", Some(0)),
+    ("erofs.img", "raw", "none", Some(0)),
     // Recognised as a VHDX and then refused, because it is the first 320 KiB
     // of one.
     ("vhdx-head.img", "vhdx", "", None),
 ];
 
 /// The whole-device sniff must name the filesystem its maker made, for the
-/// two seeds that are filesystems. These are the strings `blkid -o export`
+/// seeds that are filesystems. These are the strings `blkid -o export`
 /// reports as `TYPE=` for the same files.
-const WHAT_BLKID_CALLS_THEM: &[(&str, &str)] =
-    &[("ext4.img", "ext4"), ("squashfs.img", "squashfs")];
+const WHAT_BLKID_CALLS_THEM: &[(&str, &str)] = &[
+    ("ext4.img", "ext4"),
+    ("squashfs.img", "squashfs"),
+    ("xfs-head.img", "xfs"),
+    ("btrfs-head.img", "btrfs"),
+    ("erofs.img", "erofs"),
+];
 
 /// Every committed image is read as what the tool that wrote it says it is.
 ///
