@@ -11,6 +11,17 @@ crates.io. Everything below is what the first release will contain.
 
 ### Added
 
+- **Each partition reports its table slot, the rules it breaks, and how much
+  of it is on the image.** `am-partitions` moves to 0.5.0, and every entry in
+  the document gains `slot` (zero-based; absent when the entry has none),
+  `issues` (the `PARTITIONS_ENTRY_*` bits; 0 for none) and
+  `available_length`. `length` is what the table claims; `available_length`
+  is what the image holds, and on an image cut short in the middle of a
+  partition the two differ — the claim used to be the only number reported.
+  `tests/partition_fields.rs` holds it to a real GPT image truncated half-way
+  through its last partition, and `tests/oracle_tools.rs` holds `slot` to
+  sfdisk's partition number and `available_length` to sfdisk's size (#28).
+
 - **A partition-table probe CLI.** Reports the table type and partition layout
   of a device, and sniffs a filesystem on a device with no table at all.
 - A lint gate and CI.

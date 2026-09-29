@@ -208,12 +208,15 @@ fn the_containers_blkid_cannot_read_are_read_here() {
     }
 }
 
-/// `sfdisk --dump`, as one `(start, size, type, name)` per partition.
+/// `sfdisk --dump`, as one `(number, start, size, type, name)` per partition.
+///
+/// `number` is sfdisk's partition number -- the N it appends to the device
+/// name, which is the table slot plus one.
 ///
 /// The dump is line-oriented and one field per `key=value`, which is why it
 /// is read rather than `--json`: a JSON parser to read four scalars would be
 /// a dependency this crate does not otherwise have.
-fn sfdisk_partitions(path: &Path) -> Vec<(u64, u64, String, Option<String>)> {
+fn sfdisk_partitions(path: &Path) -> Vec<(u64, u64, u64, String, Option<String>)> {
     let dump = tool("sfdisk", &["--dump", path.to_str().expect("utf-8 path")]);
     let sector: u64 = dump
         .lines()
@@ -227,7 +230,12 @@ fn sfdisk_partitions(path: &Path) -> Vec<(u64, u64, String, Option<String>)> {
             let mut size = 0;
             let mut kind = String::new();
             let mut name = None;
-            let (_, fields) = line.split_once(" : ").expect("a partition line");
+            let (node, fields) = line.split_once(" : ").expect("a partition line");
+            let node = node.trim_end();
+            let digits = node.len() - node.trim_end_matches(|c: char| c.is_ascii_digit()).len();
+            let number: u64 = node[node.len() - digits..]
+                .parse()
+                .unwrap_or_else(|e| panic!("{node}: no partition number: {e}"));
             for field in fields.split(',') {
                 let (key, value) = field.split_once('=').expect("a key=value field");
                 let value = value.trim();
@@ -239,7 +247,7 @@ fn sfdisk_partitions(path: &Path) -> Vec<(u64, u64, String, Option<String>)> {
                     _ => {}
                 }
             }
-            (start, size, kind, name)
+            (number, start, size, kind, name)
         })
         .collect()
 }
@@ -270,8 +278,14 @@ fn sfdisk_and_this_probe_agree_on_every_partition() {
             offsets.len(),
         );
 
-        for (i, (at, (start, size, kind, label))) in offsets.iter().zip(expected.iter()).enumerate()
+        for (i, (at, (number, start, size, kind, label))) in
+            offsets.iter().zip(expected.iter()).enumerate()
         {
+            assert_eq!(
+                field(&json, *at, "slot"),
+                (number - 1).to_string(),
+                "{name}: partition {i} is not in the slot sfdisk numbers it from",
+            );
             assert_eq!(
                 field(&json, *at, "start"),
                 start.to_string(),
@@ -281,6 +295,13 @@ fn sfdisk_and_this_probe_agree_on_every_partition() {
                 field(&json, *at, "length"),
                 size.to_string(),
                 "{name}: partition {i} is not the length sfdisk reports",
+            );
+            // Every committed image holds all of every partition, so the
+            // device holds exactly what sfdisk says the table claims.
+            assert_eq!(
+                field(&json, *at, "available_length"),
+                size.to_string(),
+                "{name}: partition {i} is on the image and not all available",
             );
             if kind.contains('-') {
                 // GPT: sfdisk prints the type GUID in upper case.

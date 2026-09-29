@@ -64,8 +64,11 @@ table, an I/O failure — and nothing is written to stdout.
   "partitions": [
     {
       "index": 0,
+      "slot": 0,
       "start": 1048576,
       "length": 268435456,
+      "available_length": 268435456,
+      "issues": 0,
       "fs_kind": "ext4",
       "type_byte": 131,
       "type_guid": "0fc63daf-8483-...",
@@ -74,6 +77,21 @@ table, an I/O failure — and nothing is written to stdout.
   ]
 }
 ```
+
+`slot` is the entry's zero-based slot in the on-disk table (the system's
+partition number is `slot + 1`), and is absent for an entry that has none. It
+is not `index`: a table with a hole in it is routine.
+
+`length` is what the table claims. `available_length` is how many of those
+bytes the image actually holds — equal to `length` for every partition that
+fits, less for one running past the end of an image that stops early (a `dd`
+that ended short, a table left stale after a shrink), and 0 for one starting
+past the end. Size a buffer with `available_length`.
+
+`issues` is a bit set of the table rules the entry breaks, as
+`am-partitions`' `PARTITIONS_ENTRY_*` bits: 1 starts before the first usable
+LBA, 2 ends past the last usable LBA, 4 overlaps another entry. 0 means none.
+A non-zero value is reported, not refused.
 
 `fs_kind` is one of `ext2`, `ext3`, `ext4`, `ntfs`, `fat32`, `fat16`,
 `exfat`, `hfs_plus`, `apfs`, `linux_swap`, `iso9660`, `squashfs`, `unknown`

@@ -254,13 +254,13 @@ requirement, a dependency with no pin, a pin with no dependency, or a workflow
 that clones a sibling itself.
 
 - **#14 / #28** — `am-partitions` adds fields to `PartitionInfo` between
-  releases (`slot` and `issues` are on its `main`, not in v0.4.1). `src/lib.rs`
-  zero-initialises the out-parameter rather than naming its fields, so it
-  builds against the pinned tag and the `main` alike; do not turn it back into
-  a struct literal. `Cargo.lock` is resolved against the pinned tags — a lock
-  resolved against a sibling's `main` (am-img-vmdk's adds `flate2`) makes
-  `cargo build --locked` refuse on every CI leg. Reporting `slot` and `issues`
-  waits for am-partitions 0.5.0 (#28).
+  releases (0.5.0 added `slot`, `issues` and `available_length`, which had sat
+  on its `main` since v0.4.1). `src/lib.rs` zero-initialises the out-parameter
+  rather than naming its fields, so it builds against the pinned tag and the
+  `main` alike; do not turn it back into a struct literal. `Cargo.lock` and
+  `fuzz/Cargo.lock` are resolved against the pinned tags — a lock resolved
+  against a sibling's `main` (am-img-vmdk's adds `flate2`) makes
+  `cargo build --locked` refuse on every CI leg.
 - **#15** — an `unnecessary_cast` in the partition-label slice fires only on
   aarch64, where `c_char` is unsigned. `.cast::<u8>()` is the spelling that is
   right on every target; `as *const u8` is a no-op cast there and clippy
