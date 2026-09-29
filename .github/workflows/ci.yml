@@ -45,6 +45,18 @@ jobs:
         # them (#27).
         run: bash scripts/clone-siblings.sh
 
+      # THE ORACLE TESTS WRITE THEIR OWN XFS, BTRFS AND EROFS IMAGES, with
+      # each format's own mkfs, because mkfs.xfs refuses anything under
+      # 300 MiB and that is no size for a committed seed. blkid and sfdisk are
+      # already on every Linux runner; these three are not all there, and
+      # tests/oracle_tools.rs fails naming the package when one is missing
+      # rather than skipping. macOS does not compile that file.
+      - name: install the mkfs tools the oracle tests write images with
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends xfsprogs btrfs-progs erofs-utils
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.95.0
@@ -73,9 +85,9 @@ jobs:
           # different numbers of tests. A single number would have to be the
           # smaller one, which is a floor the Linux legs could never breach.
           if [ "$(uname -s)" = Linux ]; then
-            bash scripts/test-floor.sh debug 52
+            bash scripts/test-floor.sh debug 59
           else
-            bash scripts/test-floor.sh debug 49
+            bash scripts/test-floor.sh debug 54
           fi
 
       # THE PROFILE THAT SHIPS. `chore binary` builds --release with
@@ -92,9 +104,9 @@ jobs:
           # different numbers of tests. A single number would have to be the
           # smaller one, which is a floor the Linux legs could never breach.
           if [ "$(uname -s)" = Linux ]; then
-            bash scripts/test-floor.sh release 52
+            bash scripts/test-floor.sh release 59
           else
-            bash scripts/test-floor.sh release 49
+            bash scripts/test-floor.sh release 54
           fi
 
       # A quiet tier keeps everything; it just does not print it. Without this

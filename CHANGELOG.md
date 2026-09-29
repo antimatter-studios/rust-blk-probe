@@ -11,6 +11,14 @@ crates.io. Everything below is what the first release will contain.
 
 ### Added
 
+- **XFS, Btrfs and EROFS are identified** (#36). They came back `unknown`:
+  `am-partitions`' sniff has no kind for any of the three, and its window ends
+  where the Btrfs superblock begins. `src/superblock.rs` recognises each from
+  its own superblock -- the magic plus the fields that must agree with it --
+  and runs only where that sniff answered `unknown`. `tests/oracle_tools.rs`
+  writes each with its own mkfs, whole-device and as partitions of a GPT
+  `sfdisk` wrote, and holds the answer to what `blkid -p` says.
+
 - **Each partition reports its table slot, the rules it breaks, and how much
   of it is on the image.** `am-partitions` moves to 0.5.0, and every entry in
   the document gains `slot` (zero-based; absent when the entry has none),

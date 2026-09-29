@@ -217,9 +217,9 @@ tasks:
         # Linux legs could never breach -- they could lose the whole oracle suite
         # and still pass it.
         if [ "$(uname -s)" = Linux ]; then
-          bash scripts/test-floor.sh debug 52
+          bash scripts/test-floor.sh debug 59
         else
-          bash scripts/test-floor.sh debug 49
+          bash scripts/test-floor.sh debug 54
         fi
 
   test:release:
@@ -239,9 +239,9 @@ tasks:
         # Linux legs could never breach -- they could lose the whole oracle suite
         # and still pass it.
         if [ "$(uname -s)" = Linux ]; then
-          bash scripts/test-floor.sh release 52
+          bash scripts/test-floor.sh release 59
         else
-          bash scripts/test-floor.sh release 49
+          bash scripts/test-floor.sh release 54
         fi
 
   test:

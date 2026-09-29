@@ -25,6 +25,12 @@
 //! Linux runner, so "absent" means somebody changed the image and the right
 //! answer is to say so loudly.
 //!
+//! XFS, Btrfs and EROFS are compared over images written here, at test time,
+//! by `mkfs.xfs`, `mkfs.btrfs` and `mkfs.erofs` -- mkfs.xfs will not write
+//! anything small enough to commit. Those are xfsprogs, btrfs-progs and
+//! erofs-utils, which CI installs on its Linux legs; a missing one fails the
+//! same way, naming its package.
+//!
 //! The corpus-recorded half of this check runs everywhere, on a machine with
 //! neither tool: `every_committed_image_is_read_as_what_the_tool_that_wrote
 //! _it_says` in tests/fuzz_decoders.rs holds the same images to what their
@@ -327,5 +333,269 @@ fn sfdisk_and_this_probe_agree_on_every_partition() {
                 );
             }
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Filesystems written by their own mkfs, on this machine
+//
+// The committed corpus is small on purpose, and two of the three formats
+// below cannot be: mkfs.xfs refuses a filesystem under 300 MiB and
+// mkfs.btrfs one under about 114 MiB. So these images are written at test
+// time, by each format's own mkfs, into sparse files that cost a few MiB of
+// real disk -- and `blkid -p`, which has no stake in our reading of them, says
+// what each one is before this probe is asked.
+//
+// Every assertion names the kind the mkfs wrote as well as comparing the two
+// answers. Agreement alone is not enough: an image blkid did not recognise
+// and this probe called "unknown" would agree, and prove nothing.
+// ---------------------------------------------------------------------------
+
+const MIB: u64 = 1024 * 1024;
+
+/// The formats this probe identifies from their own superblocks: what blkid
+/// calls each, the package whose mkfs writes it, and how large an image it
+/// is given.
+///
+/// The sizes are each mkfs's floor, rounded up. EROFS is built from a
+/// directory rather than formatted in place, so its size is only the room it
+/// is given inside a partition.
+const WRITTEN_HERE: &[(&str, &str, u64)] = &[
+    ("xfs", "xfsprogs", 320 * MIB),
+    ("btrfs", "btrfs-progs", 128 * MIB),
+    ("erofs", "erofs-utils", 8 * MIB),
+];
+
+/// A scratch directory, removed with everything in it when the test ends.
+struct Scratch(PathBuf);
+
+impl Scratch {
+    fn new(name: &str) -> Self {
+        let dir =
+            std::env::temp_dir().join(format!("blk.probe-oracle-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("a scratch directory");
+        Scratch(dir)
+    }
+
+    fn join(&self, name: &str) -> PathBuf {
+        self.0.join(name)
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn utf8(path: &Path) -> &str {
+    path.to_str().expect("utf-8 path")
+}
+
+/// Run a tool that writes a fixture, feeding it `stdin`. Anything but success
+/// fails, naming the package that provides the tool.
+fn make(package: &str, program: &str, args: &[&str], stdin: &str) {
+    use std::io::Write;
+    use std::process::Stdio;
+
+    let mut child = Command::new(program)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap_or_else(|e| {
+            panic!(
+                "{program} could not be run ({e}). It writes the fixture this test hands to \
+                 blkid and to this probe, and it ships in {package}: \
+                 `sudo apt-get install -y {package}`. This test does not skip -- a fixture \
+                 nobody wrote is a comparison nobody made."
+            )
+        });
+    child
+        .stdin
+        .take()
+        .expect("a piped stdin")
+        .write_all(stdin.as_bytes())
+        .expect("writing a tool's stdin");
+    let output = child.wait_with_output().expect("waiting for a tool");
+    assert!(
+        output.status.success(),
+        "{program} {args:?} failed: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+}
+
+/// A sparse file of `bytes`, which is what an in-place mkfs is pointed at.
+fn sparse(path: &Path, bytes: u64) {
+    std::fs::File::create(path)
+        .and_then(|f| f.set_len(bytes))
+        .expect("a sparse image");
+}
+
+/// Write a `kind` filesystem into `image`, using that format's own mkfs.
+fn mkfs(kind: &str, package: &str, bytes: u64, image: &Path, scratch: &Scratch) {
+    match kind {
+        "xfs" => {
+            sparse(image, bytes);
+            make(package, "mkfs.xfs", &["-q", "-f", utf8(image)], "");
+        }
+        "btrfs" => {
+            sparse(image, bytes);
+            make(package, "mkfs.btrfs", &["-q", "-f", utf8(image)], "");
+        }
+        "erofs" => {
+            let tree = scratch.join("erofs-tree");
+            std::fs::create_dir_all(&tree).expect("an erofs source tree");
+            std::fs::write(tree.join("hello.txt"), b"hello\n").expect("a file in the tree");
+            make(package, "mkfs.erofs", &[utf8(image), utf8(&tree)], "");
+        }
+        other => panic!("no mkfs rule for {other}"),
+    }
+}
+
+/// `blkid -p -o export`: a low-level probe of the bytes, never the cache,
+/// optionally over the window `(offset, size)` of the file.
+fn blkid_low_level(path: &Path, window: Option<(u64, u64)>) -> Vec<(String, String)> {
+    let mut args: Vec<String> = vec!["-p".into(), "-o".into(), "export".into()];
+    if let Some((offset, size)) = window {
+        args.extend([
+            "-O".into(),
+            offset.to_string(),
+            "-S".into(),
+            size.to_string(),
+        ]);
+    }
+    args.push(utf8(path).to_string());
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    tool("blkid", &args)
+        .lines()
+        .filter_map(|line| line.split_once('='))
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect()
+}
+
+/// This probe's document for a file, read through the file rather than into
+/// memory: these images are hundreds of MiB, almost all of it holes.
+fn probe_file(path: &Path) -> String {
+    blk_probe::probe_path(utf8(path), None)
+        .unwrap_or_else(|e| panic!("{}: would not probe: {e}", path.display()))
+        .json
+}
+
+/// A whole-device filesystem each mkfs wrote is called the same thing by
+/// blkid and by this probe -- and that thing is what the mkfs wrote.
+#[test]
+fn a_whole_device_filesystem_its_mkfs_wrote_is_named_as_blkid_names_it() {
+    let scratch = Scratch::new("whole-device");
+    for (kind, package, bytes) in WRITTEN_HERE {
+        let image = scratch.join(&format!("{kind}.img"));
+        mkfs(kind, package, *bytes, &image, &scratch);
+
+        let pairs = blkid_low_level(&image, None);
+        assert_eq!(
+            blkid_value(&pairs, "TYPE").as_deref(),
+            Some(*kind),
+            "{kind}: blkid does not call what mkfs wrote {kind}, so this comparison would \
+             check nothing: {pairs:?}",
+        );
+
+        let json = probe_file(&image);
+        assert_eq!(
+            field(&json, 0, "table"),
+            "none",
+            "{kind}: a whole-device filesystem was read as a partition table: {json}",
+        );
+        assert_eq!(
+            field(&json, 0, "device_fs_kind"),
+            *kind,
+            "{kind}: blkid calls this {kind}: {json}",
+        );
+    }
+}
+
+/// The same filesystems, one per partition of a GPT that sfdisk wrote: sfdisk
+/// says where each partition is, blkid says what is in it, and this probe must
+/// agree with both.
+#[test]
+fn each_partitions_filesystem_its_mkfs_wrote_is_named_as_blkid_names_it() {
+    let scratch = Scratch::new("gpt");
+    // 1 MiB before the first partition for the primary table, and 1 MiB after
+    // the last for the backup.
+    let total = MIB + WRITTEN_HERE.iter().map(|(_, _, b)| b).sum::<u64>() + MIB;
+    let disk = scratch.join("disk.img");
+    sparse(&disk, total);
+
+    let mut script = String::from("label: gpt\n");
+    let mut at = MIB;
+    for (_, _, bytes) in WRITTEN_HERE {
+        script.push_str(&format!(
+            "start={}, size={}, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4\n",
+            at / 512,
+            bytes / 512,
+        ));
+        at += bytes;
+    }
+    make(
+        "fdisk",
+        "sfdisk",
+        &["--quiet", "--no-tell-kernel", utf8(&disk)],
+        &script,
+    );
+
+    let mut at = MIB;
+    for (kind, package, bytes) in WRITTEN_HERE {
+        let image = scratch.join(&format!("{kind}.img"));
+        mkfs(kind, package, *bytes, &image, &scratch);
+        let seek = format!("seek={}", at / MIB);
+        let input = format!("if={}", utf8(&image));
+        let output = format!("of={}", utf8(&disk));
+        make(
+            "coreutils",
+            "dd",
+            &[
+                &input,
+                &output,
+                "bs=1M",
+                &seek,
+                "conv=notrunc,sparse",
+                "status=none",
+            ],
+            "",
+        );
+        at += bytes;
+    }
+
+    let table = sfdisk_partitions(&disk);
+    assert_eq!(
+        table.len(),
+        WRITTEN_HERE.len(),
+        "sfdisk does not see the partitions it wrote: {table:?}",
+    );
+    let json = probe_file(&disk);
+    assert_eq!(field(&json, 0, "table"), "gpt", "{json}");
+    let offsets = partition_offsets(&json);
+    assert_eq!(offsets.len(), table.len(), "{json}");
+
+    for ((kind, _, _), ((_, start, size, _, _), at)) in
+        WRITTEN_HERE.iter().zip(table.iter().zip(offsets.iter()))
+    {
+        let pairs = blkid_low_level(&disk, Some((*start, *size)));
+        assert_eq!(
+            blkid_value(&pairs, "TYPE").as_deref(),
+            Some(*kind),
+            "{kind}: blkid does not call the partition at {start} {kind}: {pairs:?}",
+        );
+        assert_eq!(
+            field(&json, *at, "start"),
+            start.to_string(),
+            "{kind}: the partition does not start where sfdisk says",
+        );
+        assert_eq!(
+            field(&json, *at, "fs_kind"),
+            *kind,
+            "{kind}: blkid calls the partition at {start} {kind}: {json}",
+        );
     }
 }

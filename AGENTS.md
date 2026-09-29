@@ -229,6 +229,12 @@ does not skip. The recorded half of the same check, in `tests/fuzz_decoders.rs`,
 runs on every platform with neither tool installed, and this file is what keeps
 those recorded expectations honest.
 
+XFS, Btrfs and EROFS are identified here, in `src/superblock.rs`, not by
+`am-partitions`, and only where its sniff answered `unknown`. Their oracle
+rows write images at test time with each format's own mkfs (xfsprogs,
+btrfs-progs, erofs-utils, installed by CI's Linux legs) rather than
+committing them: mkfs.xfs will not go under 300 MiB.
+
 The interesting rows are the containers: `blkid` reads a qcow2 or a VMDK as an
 unrecognised blob, and this crate unwraps it and finds the same GPT `blkid`
 finds in the raw original. That is the reason the crate exists, written as a
