@@ -64,11 +64,13 @@ jobs:
       attestations: write
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
       - name: clone the sibling crates
         shell: bash
         run: bash scripts/clone-siblings.sh
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable, 2026-09-27
         with:
           toolchain: 1.95.0
       - name: build the binary the tarball carries
