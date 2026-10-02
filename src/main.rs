@@ -16,6 +16,10 @@
 //! Usage:
 //!   blk.probe <path>
 //!   blk.probe <path> --container=qcow2|vhd|vhdx|vmdk
+//!   blk.probe --version
+//!
+//! `--version` prints `blk.probe (rust-blk-probe) <version>`, the line every
+//! tool in the family answers with, and probes nothing (#47).
 //!
 //! Exit codes:
 //!   0  — JSON written to stdout
@@ -30,8 +34,27 @@
 //! library crate.
 
 use blk_probe::{probe_path, Container, ProbeError};
+use fs_core::cli::{version, Family};
 
-const USAGE: &str = "usage: blk.probe <path> [--container=qcow2|vhd|vhdx|vmdk]";
+const USAGE: &str = "usage: blk.probe <path> [--container=qcow2|vhd|vhdx|vmdk] | --version";
+
+/// The name a person types; the cargo target is `blk_probe` only because
+/// cargo refuses a dot (see Cargo.toml).
+const TOOL: &str = "blk.probe";
+
+/// What `--version` reports, in the shape the family's shared CLI plumbing
+/// defines. No dotted tools are listed: this binary does not use the
+/// multi-call dispatch, only the identifying line.
+static FAMILY: Family = Family {
+    repo: env!("CARGO_PKG_NAME"),
+    crate_name: env!("CARGO_PKG_NAME"),
+    version: env!("CARGO_PKG_VERSION"),
+    about: env!("CARGO_PKG_DESCRIPTION"),
+    install_hints: &[
+        "the release tarball at https://github.com/antimatter-studios/rust-blk-probe/releases",
+    ],
+    tools: &[],
+};
 
 // The exit-code table, named. It is published in three places — the module
 // doc-comment above, the README, and here — and the point of naming the
@@ -47,6 +70,12 @@ fn die(code: i32, msg: &str) -> ! {
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    // Anywhere on the line, and before anything else is looked at, so a
+    // version check never depends on a device being there.
+    if args.iter().any(|a| a == "--version") {
+        println!("{}", version::line(&FAMILY, TOOL));
+        std::process::exit(0);
+    }
     if args.is_empty() || args.iter().any(|a| a == "-h" || a == "--help") {
         println!("{USAGE}");
         std::process::exit(0);

@@ -11,6 +11,14 @@ crates.io. Everything below is what the first release will contain.
 
 ### Added
 
+- **`blk.probe --version`** (#47). It prints `blk.probe (rust-blk-probe)
+  <version>`, the family's identifying line, written by
+  `fs_core::cli::version` rather than a copy of its format, so a package
+  formula's test and an installer can tell this program and its version from
+  anything else on PATH. It was an unknown flag, exit 1.
+  `scripts/check-package.sh` now refuses a tarball whose binary does not
+  report the version in the tarball's name.
+
 - **A linux-x86_64 release tarball** (#45). v0.1.0 shipped
   `rust-blk-probe-0.1.0-darwin-arm64.tar.gz` alone, so `blk.probe` could not be
   installed on Linux. `release.yml` now packages
