@@ -178,7 +178,7 @@ repository's parent directory:
 
 Check them out beside this one.
 
-## History
+## Origin
 
 Extracted from the application repository that first used it, at
 `vendor/rust-disk-probe`, with the five commits that touched that path
