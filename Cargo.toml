@@ -49,7 +49,7 @@ path = "src/main.rs"
 # tests/scripts/test-sibling-pins-agree.sh fails if this list and that one
 # stop naming the same six crates.
 [dependencies]
-am-fs-core = { path = "../rust-fs-core", version = "0.2.13" }
+am-fs-core = { path = "../rust-fs-core", version = "0.2.16" }
 am-img-qcow2 = { path = "../rust-img-qcow2", version = "0.4.5" }
 am-img-vhd = { path = "../rust-img-vhd", version = "0.4.0" }
 am-img-vhdx = { path = "../rust-img-vhdx", version = "0.4.0" }

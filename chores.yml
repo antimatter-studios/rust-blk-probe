@@ -84,7 +84,7 @@ chore_min_version: 0.6.0
 # produced no test binary and a full suite report the same green -- and the
 # quieter this repository gets, the less anybody would notice. Every tier
 # therefore carries an executed-test floor as well, checked by
-# scripts/test-floor.sh from the tier's own log.
+# scripts/core.sh test-floor from the tier's own log.
 #
 # THERE IS NO scripts/output-budget.sh HERE, deliberately. The wrapper is
 # rust-fs-core's -- this crate already depends on am-fs-core -- and
@@ -217,9 +217,9 @@ tasks:
         # Linux legs could never breach -- they could lose the whole oracle suite
         # and still pass it.
         if [ "$(uname -s)" = Linux ]; then
-          bash scripts/test-floor.sh debug 59
+          bash scripts/core.sh test-floor debug 59
         else
-          bash scripts/test-floor.sh debug 54
+          bash scripts/core.sh test-floor debug 54
         fi
 
   test:release:
@@ -239,9 +239,9 @@ tasks:
         # Linux legs could never breach -- they could lose the whole oracle suite
         # and still pass it.
         if [ "$(uname -s)" = Linux ]; then
-          bash scripts/test-floor.sh release 59
+          bash scripts/core.sh test-floor release 59
         else
-          bash scripts/test-floor.sh release 54
+          bash scripts/core.sh test-floor release 54
         fi
 
   test:

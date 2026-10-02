@@ -26,7 +26,7 @@ PARENT="${1:-$(dirname "$HERE")}"
 
 # name                ref
 SIBLINGS=(
-    "rust-fs-core     v0.2.13"
+    "rust-fs-core     v0.2.16"
     "rust-img-qcow2   v0.4.5"
     "rust-img-vhd     v0.4.0"
     "rust-img-vhdx    v0.4.0"
