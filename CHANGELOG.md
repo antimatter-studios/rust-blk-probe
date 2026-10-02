@@ -11,6 +11,15 @@ crates.io. Everything below is what the first release will contain.
 
 ### Added
 
+- **A linux-x86_64 release tarball** (#45). v0.1.0 shipped
+  `rust-blk-probe-0.1.0-darwin-arm64.tar.gz` alone, so `blk.probe` could not be
+  installed on Linux. `release.yml` now packages
+  `rust-blk-probe-<version>-linux-x86_64.tar.gz` beside it, in the same
+  `bin/blk.probe` + `LICENSE` layout, on a native Ubuntu runner; one job
+  attests both and attaches them with their `.sha256` files, and `ci.yml`'s
+  `package` legs build both on every pull request.
+  `tests/scripts/test-release-platforms.sh` fails a workflow that drops either.
+
 - **A release tarball, built on every pull request and published with
   build provenance on a tag** (#36). `scripts/package.sh` writes
   `rust-blk-probe-<version>-darwin-arm64.tar.gz` holding `bin/blk.probe` and

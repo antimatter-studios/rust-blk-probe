@@ -141,9 +141,10 @@ repository has to know them.
 
 ## Release tarball
 
-A version tag publishes `rust-blk-probe-<version>-darwin-arm64.tar.gz` on the
-GitHub release, with a `.sha256` beside it and a build-provenance
-attestation:
+A version tag publishes one tarball per platform on the GitHub release --
+`rust-blk-probe-<version>-darwin-arm64.tar.gz` and
+`rust-blk-probe-<version>-linux-x86_64.tar.gz` -- each with a `.sha256` beside
+it and a build-provenance attestation, and each laid out the same:
 
 ```
 bin/blk.probe
@@ -151,7 +152,7 @@ LICENSE
 ```
 
 ```sh
-gh attestation verify rust-blk-probe-<version>-darwin-arm64.tar.gz \
+gh attestation verify rust-blk-probe-<version>-<platform>.tar.gz \
   --repo antimatter-studios/rust-blk-probe \
   --signer-workflow antimatter-studios/rust-blk-probe/.github/workflows/release.yml
 ```
