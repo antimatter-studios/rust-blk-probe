@@ -6,6 +6,22 @@ never does.
 
 ## [Unreleased]
 
+## v0.1.2 — 2026-10-03
+
+A tool release: the library's API is unchanged. Nothing is published to
+crates.io; the release is the tarballs.
+
+v0.1.1 was versioned in `Cargo.toml` but never tagged, so no release carries
+its changes. v0.1.2 is the first release to attach the linux-x86_64 tarball
+beside the darwin-arm64 one (#52), and it ships everything listed under v0.1.1
+below.
+
+### Changed
+
+- **`am-fs-core` 0.2.18** (#48). The CI gate runs from `rust-fs-core`'s
+  `scripts/core.sh ci-gate` rather than a copy kept here, and every
+  `rust-fs-core` ref moves to 0.2.18. The probe's behaviour is unchanged.
+
 ## v0.1.1 — 2026-10-03
 
 A tool release: the library's API is unchanged. Nothing is published to
