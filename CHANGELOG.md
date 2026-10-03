@@ -6,8 +6,10 @@ never does.
 
 ## [Unreleased]
 
-This crate is not yet released — there are no tags and nothing is published to
-crates.io. Everything below is what the first release will contain.
+## v0.1.1 — 2026-10-03
+
+A tool release: the library's API is unchanged. Nothing is published to
+crates.io; the release is the tarballs.
 
 ### Added
 
@@ -27,6 +29,13 @@ crates.io. Everything below is what the first release will contain.
   attests both and attaches them with their `.sha256` files, and `ci.yml`'s
   `package` legs build both on every pull request.
   `tests/scripts/test-release-platforms.sh` fails a workflow that drops either.
+
+## v0.1.0 — 2026-09-29
+
+The first release: `rust-blk-probe-0.1.0-darwin-arm64.tar.gz` on the GitHub
+release, with build provenance. Nothing is published to crates.io.
+
+### Added
 
 - **A release tarball, built on every pull request and published with
   build provenance on a tag** (#36). `scripts/package.sh` writes
