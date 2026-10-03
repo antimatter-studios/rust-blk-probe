@@ -227,7 +227,7 @@ checksum = "323c417e1d9665a65b263ec744ba09030cfb277e9daa0b018a4ab62e57bc8189"
 
 [[package]]
 name = "rust-blk-probe"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "am-fs-core",
  "am-img-qcow2",
