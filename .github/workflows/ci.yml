@@ -147,8 +147,6 @@ jobs:
           components: rustfmt
       - name: fmt
         run: cargo fmt --check
-      - name: the one required check stands for every job
-        run: bash scripts/core.sh ci-gate
       - name: the agent guide carries the shared block
         # AGENTS.md embeds agent-core, byte-identical with every sibling. This
         # runs the script directly rather than through `chore lint`, because
@@ -164,6 +162,10 @@ jobs:
       - name: clone the sibling crates
         shell: bash
         run: bash scripts/clone-siblings.sh
+      # ci-gate is rust-fs-core's and core.sh finds it through cargo metadata,
+      # so it can only run once the siblings are beside this checkout.
+      - name: the one required check stands for every job
+        run: bash scripts/core.sh ci-gate
       # The shell tests, by glob, so a guard added later needs no edit here.
       - name: script tests (tests/scripts/*.sh)
         run: |
