@@ -37,7 +37,12 @@ runs what was staged.
 ```
 blk.probe <path>
 blk.probe <path> --container=qcow2|vhd|vhdx|vmdk
+blk.probe --version
 ```
+
+`--version` prints `blk.probe (rust-blk-probe) <version>` and exits 0, the
+same `<tool> (<package>) <version>` line every tool in the family answers
+with. It probes nothing, wherever it appears on the line.
 
 With `--container` omitted the container kind is auto-detected from the magic
 at offset 0, or from the trailing 512-byte footer for fixed VHDs. If nothing

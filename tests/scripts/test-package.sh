@@ -6,8 +6,8 @@
 # with scripts/package.sh exactly as ci.yml and release.yml do, and holds the
 # result to scripts/check-package.sh -- and then proves that check FAILS on a
 # tarball with a file too many, a missing LICENSE, a checksum that does not
-# match and a platform the binary was not built for. A check that cannot fail
-# is indistinguishable from no check.
+# match, a platform the binary was not built for and a version it does not
+# report. A check that cannot fail is indistinguishable from no check.
 #
 #   bash tests/scripts/test-package.sh
 set -uo pipefail
@@ -36,7 +36,8 @@ case "$(uname -s)-$(uname -m)" in
     Linux-aarch64) PLATFORM=linux-arm64 ; OTHER=darwin-arm64 ;;
     *) echo "FAIL  no tarball platform for $(uname -s)-$(uname -m)" >&2; exit 1 ;;
 esac
-VERSION=0.0.0-test
+# The version the binary reports, which check-package.sh holds the name to.
+VERSION="$(grep -m1 '^version = ' "$REPO/Cargo.toml" | sed 's/version = //; s/"//g')"
 NAME="rust-blk-probe-$VERSION-$PLATFORM.tar.gz"
 
 if ! cargo build --locked --quiet --bin blk_probe >"$SANDBOX/build.log" 2>&1; then
@@ -110,6 +111,9 @@ refused "a checksum that does not match it" "$badsum"
 
 refused "a platform its binary was not built for" \
     "$(repack "$unpacked" "rust-blk-probe-$VERSION-$OTHER.tar.gz")"
+
+refused "a version its binary does not report" \
+    "$(repack "$unpacked" "rust-blk-probe-0.0.0-$PLATFORM.tar.gz")"
 
 if (( fails > 0 )); then
     echo "FAIL  $fails check(s) failed" >&2

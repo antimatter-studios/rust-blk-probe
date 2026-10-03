@@ -3,8 +3,9 @@
 #
 # Checked, in order: the .sha256 beside it matches; it holds bin/blk.probe and
 # LICENSE and nothing else; the binary is built for the platform the name
-# claims; and it runs -- `--help` prints the usage line, and it probes a GPT
-# image sgdisk wrote from the committed corpus as a GPT.
+# claims; and it runs -- `--version` names the version the tarball's name
+# claims, `--help` prints the usage line, and it probes a GPT image sgdisk
+# wrote from the committed corpus as a GPT.
 #
 # ci.yml runs this on every pull request against the tarball it has just
 # built, and release.yml runs it before anything is attested or uploaded, so a
@@ -29,6 +30,8 @@ refuse() { echo "check-package: $name: $*" >&2; exit 1; }
 
 platform="$(sed -E 's/^rust-blk-probe-.*-([a-z]+-[a-z0-9_]+)\.tar\.gz$/\1/' <<<"$name")"
 [[ "$platform" != "$name" ]] || refuse "not named rust-blk-probe-<version>-<platform>.tar.gz"
+version="${name#rust-blk-probe-}"
+version="${version%-"$platform".tar.gz}"
 
 # --- the checksum ------------------------------------------------------------
 [[ -f "$dir/$name.sha256" ]] || refuse "no $name.sha256 beside it"
@@ -63,6 +66,12 @@ grep -Eq "$want_kind" <<<"$kind" || refuse "is named $platform and holds: $kind"
 # --- it runs -------------------------------------------------------------------
 # Only where it can: a tarball for another platform has already been refused
 # above, so reaching here means the binary is this host's.
+# The line a package formula's test and an installer read to know they have
+# this program at this version (#47).
+said="$("$probe" --version 2>&1)" || refuse "bin/blk.probe --version exited $?: $said"
+[[ "$said" == "blk.probe (rust-blk-probe) $version" ]] ||
+    refuse "bin/blk.probe --version printed [$said], expected [blk.probe (rust-blk-probe) $version]"
+
 usage="$("$probe" --help 2>&1)" || refuse "bin/blk.probe --help exited $?"
 [[ "$usage" == "usage: blk.probe "* ]] || refuse "bin/blk.probe --help printed: $usage"
 

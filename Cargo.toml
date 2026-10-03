@@ -48,8 +48,15 @@ path = "src/main.rs"
 # The refs CI checks out are in scripts/clone-siblings.sh, and
 # tests/scripts/test-sibling-pins-agree.sh fails if this list and that one
 # stop naming the same six crates.
+#
+# am-fs-core's `cli` FEATURE IS ON FOR ONE THING: `blk.probe --version`
+# prints the family's identifying line through `fs_core::cli::version`, the
+# one place that line is written, rather than a copy of its format here
+# (#47). The rest of that module -- multi-call dispatch, JSON errors on
+# stderr, exit 2 for a usage error -- is not used, because this tool's exit
+# codes are a published contract of their own.
 [dependencies]
-am-fs-core = { path = "../rust-fs-core", version = "0.2.16" }
+am-fs-core = { path = "../rust-fs-core", version = "0.2.16", features = ["cli"] }
 am-img-qcow2 = { path = "../rust-img-qcow2", version = "0.4.5" }
 am-img-vhd = { path = "../rust-img-vhd", version = "0.4.0" }
 am-img-vhdx = { path = "../rust-img-vhdx", version = "0.4.0" }
