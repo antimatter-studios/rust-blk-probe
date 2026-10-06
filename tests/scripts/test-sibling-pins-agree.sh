@@ -40,7 +40,7 @@ if [ -z "$pins" ]; then
     exit 1
 fi
 
-# `am-fs-core = { path = "../rust-fs-core", version = "0.2.13" }`
+# `rust-fs-core = { path = "../rust-fs-core", version = "0.2.13" }`
 deps="$(grep -oE '^[a-z0-9-]+ = \{ path = "\.\./[a-z0-9-]+", version = "[^"]+" \}' \
     "$REPO/Cargo.toml")"
 [ -n "$deps" ] && ok "Cargo.toml declares $(grep -c . <<<"$deps") path dependencies" \
@@ -97,15 +97,15 @@ cat > "$SANDBOX/scripts/clone-siblings.sh" <<'FAKE'
 FAKE
 cat > "$SANDBOX/Cargo.toml" <<'FAKE'
 [dependencies]
-am-fs-core = { path = "../rust-fs-core", version = "0.2" }
-am-partitions = { path = "../rust-partitions", version = "0.4.1" }
+rust-fs-core = { path = "../rust-fs-core", version = "0.2" }
+rust-disk-partitions = { path = "../rust-disk-partitions", version = "0.4.1" }
 FAKE
 cat > "$SANDBOX/.github/workflows/ci.yml" <<'FAKE'
       - run: git clone --depth 1 --branch v0.2.6 https://github.com/antimatter-studios/rust-fs-core.git ../rust-fs-core
 FAKE
 seen="$(bash "$SANDBOX/tests/scripts/$SELF" 2>&1)"
 for want in \
-    "rust-partitions is a dependency with no pin" \
+    "rust-disk-partitions is a dependency with no pin" \
     "which is a floor rather than a release" \
     "rust-orphan is pinned in scripts/clone-siblings.sh and nothing depends on it" \
     "a workflow clones a sibling itself" \

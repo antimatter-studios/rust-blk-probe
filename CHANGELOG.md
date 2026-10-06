@@ -6,6 +6,15 @@ never does.
 
 ## [Unreleased]
 
+### Changed
+
+- **Built on the renamed crates.** `am-fs-core`, `am-img-qcow2`,
+  `am-img-vhd`, `am-img-vhdx`, `am-img-vmdk` and `am-partitions` are
+  `rust-fs-core` 0.3.3, `rust-img-qcow2` 0.6.0, `rust-img-vhd` 0.6.0,
+  `rust-img-vhdx` 0.6.0, `rust-img-vmdk` 0.5.0 and `rust-disk-partitions`
+  0.6.0, checked out beside this one at those tags. The tool's output and
+  exit codes are unchanged.
+
 ## v0.1.2 — 2026-10-03
 
 A tool release: the library's API is unchanged. Nothing is published to

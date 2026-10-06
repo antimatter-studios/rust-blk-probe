@@ -1,7 +1,7 @@
 //! Every partition carries its table slot, the table rules it breaks, and how
 //! much of it the device actually holds (#28).
 //!
-//! `am-partitions` 0.5.0 reports three things per entry that the document did
+//! `rust-disk-partitions` 0.5.0 reports three things per entry that the document did
 //! not: `slot`, `issues` and `available_length`. The last is the one a
 //! consumer sizes a buffer with: `length` is what the table claims, and on an
 //! image that stops early the device holds less.

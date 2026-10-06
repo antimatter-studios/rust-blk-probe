@@ -158,7 +158,7 @@ it**. Do not silence output to fit, and do not route around `tier.sh`.
 ## What this is
 
 A command-line probe that identifies what is on a block device or image file,
-built on `am-fs-core` and `am-partitions`. It is a **binary**, not a staticlib —
+built on `rust-fs-core` and `rust-disk-partitions`. It is a **binary**, not a staticlib —
 `chore binary` builds it, and there is no `staticlib` task, because nothing
 links this into the app.
 
@@ -197,7 +197,7 @@ two disagree.
 
 **There is no `scripts/output-budget.sh` here.** The wrapper is `rust-fs-core`'s
 and is resolved at run time — the `../rust-fs-core` sibling first, then cargo's
-answer for `am-fs-core` — verified by its `--version` string and copied into
+answer for `rust-fs-core` — verified by its `--version` string and copied into
 gitignored `tmp/` for the run. A copy that is present and answers something
 else is **fatal**, not a reason to look elsewhere.
 
@@ -230,7 +230,7 @@ runs on every platform with neither tool installed, and this file is what keeps
 those recorded expectations honest.
 
 XFS, Btrfs and EROFS are identified here, in `src/superblock.rs`, not by
-`am-partitions`, and only where its sniff answered `unknown`. Their oracle
+`rust-disk-partitions`, and only where its sniff answered `unknown`. Their oracle
 rows write images at test time with each format's own mkfs (xfsprogs,
 btrfs-progs, erofs-utils, installed by CI's Linux legs) rather than
 committing them: mkfs.xfs will not go under 300 MiB.
@@ -263,13 +263,13 @@ for each, and `tests/scripts/test-sibling-pins-agree.sh` refuses a floor
 requirement, a dependency with no pin, a pin with no dependency, or a workflow
 that clones a sibling itself.
 
-- **#14 / #28** — `am-partitions` adds fields to `PartitionInfo` between
+- **#14 / #28** — `rust-disk-partitions` adds fields to `PartitionInfo` between
   releases (0.5.0 added `slot`, `issues` and `available_length`, which had sat
   on its `main` since v0.4.1). `src/lib.rs` zero-initialises the out-parameter
   rather than naming its fields, so it builds against the pinned tag and the
   `main` alike; do not turn it back into a struct literal. `Cargo.lock` and
   `fuzz/Cargo.lock` are resolved against the pinned tags — a lock resolved
-  against a sibling's `main` (am-img-vmdk's adds `flate2`) makes
+  against a sibling's `main` (rust-img-vmdk's adds `flate2`) makes
   `cargo build --locked` refuse on every CI leg.
 - **#15** — an `unnecessary_cast` in the partition-label slice fires only on
   aarch64, where `c_char` is unsigned. `.cast::<u8>()` is the spelling that is

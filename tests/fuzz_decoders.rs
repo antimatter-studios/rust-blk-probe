@@ -264,7 +264,7 @@ const WHAT_THE_TOOLS_WROTE: &[(&str, &str, &str, Option<usize>)] = &[
     ("squashfs.img", "raw", "none", Some(0)),
     // The heads of an XFS and a Btrfs, and a whole EROFS: the three this
     // crate identifies from their superblocks rather than through
-    // am-partitions. Heads, because neither mkfs writes anything small.
+    // rust-disk-partitions. Heads, because neither mkfs writes anything small.
     ("xfs-head.img", "raw", "none", Some(0)),
     ("btrfs-head.img", "raw", "none", Some(0)),
     ("erofs.img", "raw", "none", Some(0)),

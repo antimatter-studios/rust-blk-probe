@@ -104,7 +104,7 @@ mksquashfs "$work/empty" "$probe/squashfs.img" -noappend -no-progress \
 
 # --- XFS, Btrfs and EROFS, which this crate identifies itself -------------
 # These three are recognised from their superblocks in src/superblock.rs,
-# not by am-partitions, so they need seeds of their own for the gate to
+# not by rust-disk-partitions, so they need seeds of their own for the gate to
 # mutate. Every UUID and timestamp is pinned, as above.
 #
 # XFS AND BTRFS ARE HEADS, because neither mkfs writes anything small:

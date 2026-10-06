@@ -1,6 +1,6 @@
 //! The filesystems this crate identifies from their own superblocks.
 //!
-//! `am-partitions` sniffs twelve filesystems and answers `Unknown` for the
+//! `rust-disk-partitions` sniffs twelve filesystems and answers `Unknown` for the
 //! rest. Three of the rest are XFS, Btrfs and EROFS, and it cannot simply be
 //! asked about them: its `FsKindCode` has no discriminant for any of the
 //! three, and its sniff window ends at 64 KiB, which is exactly where the

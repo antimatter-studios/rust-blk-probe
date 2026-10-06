@@ -9,7 +9,7 @@ chore_min_version: 0.6.0
 # together. None of that is a consumer's business.
 #
 # THE TASK IS `binary`, NOT `staticlib`, AND THE DIFFERENCE IS NOT COSMETIC.
-# Every sibling library here (rust-fs-*, rust-img-*, rust-partitions) exposes
+# Every sibling library here (rust-fs-*, rust-img-*, rust-disk-partitions) exposes
 # `staticlib <out>` and leaves an archive plus headers for a consumer to link.
 # This crate produces no archive and no headers. It produces one executable
 # that the host app shells out to as a child process. A task called
@@ -87,7 +87,7 @@ chore_min_version: 0.6.0
 # scripts/core.sh test-floor from the tier's own log.
 #
 # THERE IS NO scripts/output-budget.sh HERE, deliberately. The wrapper is
-# rust-fs-core's -- this crate already depends on am-fs-core -- and
+# rust-fs-core's -- this crate already depends on rust-fs-core -- and
 # scripts/tier.sh resolves it at run time from the sibling checkout or from
 # cargo's answer, verifies it by its `--version` string, and copies it into
 # gitignored tmp/ for the run. A committed copy is a copy that drifts; the
@@ -127,8 +127,8 @@ tasks:
     #
     # THE SIX SIBLING MANIFESTS ARE SOURCES OF OURS, and this is the one place
     # this file differs from its siblings' `staticlib`. Everything this binary
-    # does lives in those crates: it links am-fs-core, four am-img-* container
-    # readers and am-partitions, all by `path = "../rust-*"`. A version bump
+    # does lives in those crates: it links rust-fs-core, four rust-img-* container
+    # readers and rust-disk-partitions, all by `path = "../rust-*"`. A version bump
     # in any of them changes that crate's Cargo.toml, and without these lines
     # the fingerprint would still match and a consumer would keep staging a
     # binary built against the old code.
@@ -149,7 +149,7 @@ tasks:
       - '../rust-img-vhd/Cargo.toml'
       - '../rust-img-vhdx/Cargo.toml'
       - '../rust-img-vmdk/Cargo.toml'
-      - '../rust-partitions/Cargo.toml'
+      - '../rust-disk-partitions/Cargo.toml'
 
     # Templated, which is fine here where it is not fine above: the check
     # renders these before expanding them, and this is an exact path rather

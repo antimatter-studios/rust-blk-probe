@@ -57,14 +57,14 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # is a copy that drifts: measured across this family in September 2026 there
 # were several, reached four different ways, each repository internally
 # consistent and nothing comparing them. This crate already depends on
-# am-fs-core, so the canonical copy is always within reach; it is resolved at
+# rust-fs-core, so the canonical copy is always within reach; it is resolved at
 # RUNTIME and never committed.
 #
 # SIBLING FIRST, CARGO SECOND. The sibling path is built from this script's
 # own location, so it is right from any working directory and it means a
 # coordinated local change to the wrapper is actually exercised rather than
 # shadowed by an unpacked registry copy. Cargo is asked only when there is no
-# sibling, and then it is cargo -- which has already resolved am-fs-core --
+# sibling, and then it is cargo -- which has already resolved rust-fs-core --
 # that answers, rather than this script guessing at CARGO_HOME's layout.
 #
 # FS_CORE_ROOT OVERRIDES BOTH AND IS AUTHORITATIVE. When it is set that
@@ -129,9 +129,9 @@ try:
 except Exception:
     sys.exit(0)
 print(next((p["manifest_path"].rsplit("/", 1)[0]
-            for p in packages if p["name"] == "am-fs-core"), ""))
+            for p in packages if p["name"] == "rust-fs-core"), ""))
 ' || true)"
-        [ -n "$core_dir" ] || die "cargo could not say where am-fs-core is."
+        [ -n "$core_dir" ] || die "cargo could not say where rust-fs-core is."
         SOURCE="$core_dir/$SCRIPT_REL"
     fi
     insist_canonical "$SOURCE"
