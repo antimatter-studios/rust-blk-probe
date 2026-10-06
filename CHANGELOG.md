@@ -8,6 +8,12 @@ never does.
 
 ### Changed
 
+- **The family's scripts run in place from rust-fs-core, and this repository
+  keeps no copy.** `scripts/core.sh` and `scripts/tier.sh` are gone; CI and
+  chores run `../rust-fs-core/scripts/NAME.sh` at the pinned version
+  (rust-fs-core 0.3.3, #212).
+- **A release's notes are its CHANGELOG section**, and a tag the CHANGELOG
+  does not describe stops before anything is published (rust-fs-core#209).
 - **Built on the renamed crates.** `am-fs-core`, `am-img-qcow2`,
   `am-img-vhd`, `am-img-vhdx`, `am-img-vmdk` and `am-partitions` are
   `rust-fs-core` 0.3.3, `rust-img-qcow2` 0.6.0, `rust-img-vhd` 0.6.0,
@@ -15,7 +21,7 @@ never does.
   0.6.0, checked out beside this one at those tags. The tool's output and
   exit codes are unchanged.
 
-## v0.1.2 — 2026-10-03
+## [0.1.2] — 2026-10-03
 
 A tool release: the library's API is unchanged. Nothing is published to
 crates.io; the release is the tarballs.
@@ -31,7 +37,7 @@ below.
   `scripts/core.sh ci-gate` rather than a copy kept here, and every
   `rust-fs-core` ref moves to 0.2.18. The probe's behaviour is unchanged.
 
-## v0.1.1 — 2026-10-03
+## [0.1.1] — 2026-10-03
 
 A tool release: the library's API is unchanged. Nothing is published to
 crates.io; the release is the tarballs.
@@ -55,7 +61,7 @@ crates.io; the release is the tarballs.
   `package` legs build both on every pull request.
   `tests/scripts/test-release-platforms.sh` fails a workflow that drops either.
 
-## v0.1.0 — 2026-09-29
+## [0.1.0] — 2026-09-29
 
 The first release: `rust-blk-probe-0.1.0-darwin-arm64.tar.gz` on the GitHub
 release, with build provenance. Nothing is published to crates.io.
@@ -180,3 +186,8 @@ release, with build provenance. Nothing is published to crates.io.
   "this disk is unpartitioned" from "I could not read this disk".
 - **A short read is not a short file.** Treating one as the other truncates
   content silently instead of erroring.
+
+[Unreleased]: https://github.com/antimatter-studios/rust-blk-probe/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/antimatter-studios/rust-blk-probe/compare/v0.1.0...v0.1.2
+[0.1.1]: https://github.com/antimatter-studios/rust-blk-probe/compare/v0.1.0...v0.1.2
+[0.1.0]: https://github.com/antimatter-studios/rust-blk-probe/releases/tag/v0.1.0

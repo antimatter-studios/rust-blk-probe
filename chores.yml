@@ -31,7 +31,7 @@ chore_min_version: 0.6.0
 # replaces. It is a single lipo'd file, not two.
 # QUIET BY DEFAULT, --verbose ON REQUEST, AND THE BUDGET IS A NUMBER (#17).
 #
-# Every test tier runs through scripts/tier.sh, which runs it quietly: the
+# Every test tier runs through ../rust-fs-core/scripts/tier.sh, which runs it quietly: the
 # whole transcript goes to tmp/logs/<tier>.log, a pass prints ONE verdict line
 # naming that log, a failure prints one line naming the command's own status,
 # and a run that passed but printed more than its budget exits 65 -- a status
@@ -46,7 +46,7 @@ chore_min_version: 0.6.0
 #
 #     tier      measured (2026-09-28)   budget          headroom, and why
 #     -------   ---------------------   -------------   -------------------
-#     debug     91 lines, 5,084 bytes   125 / 8,000     27% / 36%. A cold
+#     debug     91 lines, 5,084 bytes   175 / 8,000     27% / 36%. A cold
 #                                                       `cargo clean && cargo
 #                                                       test --locked
 #                                                       --all-targets` on an
@@ -67,10 +67,16 @@ chore_min_version: 0.6.0
 #                                                       different dependency
 #                                                       set, not for the suite
 #                                                       to grow into quietly.
-#     release   91 lines, 5,080 bytes   125 / 8,000     the same run with
+#     release   91 lines, 5,080 bytes   175 / 8,000     the same run with
 #                                                       --release; the same
 #                                                       shape, so the same
 #                                                       budget.
+#
+# BOTH LINE BUDGETS MOVED ON 2026-10-06, from 125 to 175: the move to the
+# renamed crates changed Cargo.lock, which misses CI's build cache, and the
+# cold release tier on ubuntu-24.04-arm printed 130 lines (run 37481317710).
+# That plus about a third; the debug row moves with it because it is the same
+# shape. The byte budgets were not reached.
 #
 # RAISE A BUDGET WITH THE MEASUREMENT THAT JUSTIFIES IT, the way a floor is
 # raised, and raise it in .github/workflows/ci.yml in the same breath --
@@ -84,11 +90,11 @@ chore_min_version: 0.6.0
 # produced no test binary and a full suite report the same green -- and the
 # quieter this repository gets, the less anybody would notice. Every tier
 # therefore carries an executed-test floor as well, checked by
-# scripts/core.sh test-floor from the tier's own log.
+# ../rust-fs-core/scripts/test-floor.sh from the tier's own log.
 #
-# THERE IS NO scripts/output-budget.sh HERE, deliberately. The wrapper is
+# THERE IS NO ../rust-fs-core/scripts/output-budget.sh HERE, deliberately. The wrapper is
 # rust-fs-core's -- this crate already depends on rust-fs-core -- and
-# scripts/tier.sh resolves it at run time from the sibling checkout or from
+# ../rust-fs-core/scripts/tier.sh resolves it at run time from the sibling checkout or from
 # cargo's answer, verifies it by its `--version` string, and copies it into
 # gitignored tmp/ for the run. A committed copy is a copy that drifts; the
 # family had several, reached four different ways, with nothing comparing
@@ -184,7 +190,7 @@ tasks:
     # warnings on the opaque FsCoreDevice handle were scoped away —
     # `-D warnings` turned them into sixteen errors.
     cmds:
-      - scripts/agents-core-check.sh
+      - bash ../rust-fs-core/scripts/agents-core-check.sh
       - task: test:scripts
       - cargo fmt --check
       - cargo clippy --locked --all-targets -- -D warnings
@@ -208,7 +214,7 @@ tasks:
     # a tier that has outgrown either says so here -- before the push --
     # rather than in a CI log nobody was going to read.
     cmds:
-      - 'bash scripts/tier.sh "test (debug)" debug 125 8000 -- cargo test --locked --all-targets'
+      - 'bash ../rust-fs-core/scripts/tier.sh "test (debug)" debug 175 8000 -- cargo test --locked --all-targets'
       - |
         # TWO FLOORS, ONE PER PLATFORM, and the reason is tests/oracle_tools.rs:
         # `blkid` and `sfdisk` are util-linux's, so that file is compiled only on
@@ -217,9 +223,9 @@ tasks:
         # Linux legs could never breach -- they could lose the whole oracle suite
         # and still pass it.
         if [ "$(uname -s)" = Linux ]; then
-          bash scripts/core.sh test-floor debug 61
+          bash ../rust-fs-core/scripts/test-floor.sh debug 61
         else
-          bash scripts/core.sh test-floor debug 56
+          bash ../rust-fs-core/scripts/test-floor.sh debug 56
         fi
 
   test:release:
@@ -230,7 +236,7 @@ tasks:
     # checks on. An offset computation that panics in one wraps in the other,
     # and the one that wraps is the one a consumer runs.
     cmds:
-      - 'bash scripts/tier.sh "test (release)" release 125 8000 -- cargo test --locked --release --all-targets'
+      - 'bash ../rust-fs-core/scripts/tier.sh "test (release)" release 175 8000 -- cargo test --locked --release --all-targets'
       - |
         # TWO FLOORS, ONE PER PLATFORM, and the reason is tests/oracle_tools.rs:
         # `blkid` and `sfdisk` are util-linux's, so that file is compiled only on
@@ -239,9 +245,9 @@ tasks:
         # Linux legs could never breach -- they could lose the whole oracle suite
         # and still pass it.
         if [ "$(uname -s)" = Linux ]; then
-          bash scripts/core.sh test-floor release 61
+          bash ../rust-fs-core/scripts/test-floor.sh release 61
         else
-          bash scripts/core.sh test-floor release 56
+          bash ../rust-fs-core/scripts/test-floor.sh release 56
         fi
 
   test:
@@ -282,4 +288,4 @@ tasks:
     # floor the gate itself enforces -- so the suite could satisfy its floor
     # partly by checking its own CI config.
     cmds:
-      - bash scripts/core.sh ci-gate
+      - bash ../rust-fs-core/scripts/ci-gate.sh

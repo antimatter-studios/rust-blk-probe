@@ -195,11 +195,9 @@ read `chores.yml` without installing `chore` on three runners.
 `tests/scripts/test-tier-budgets-agree.sh` fails a pull request in which the
 two disagree.
 
-**There is no `scripts/output-budget.sh` here.** The wrapper is `rust-fs-core`'s
-and is resolved at run time — the `../rust-fs-core` sibling first, then cargo's
-answer for `rust-fs-core` — verified by its `--version` string and copied into
-gitignored `tmp/` for the run. A copy that is present and answers something
-else is **fatal**, not a reason to look elsewhere.
+**There is no `scripts/output-budget.sh` or `scripts/tier.sh` here.** Both are
+`rust-fs-core`'s, run in place from the `../rust-fs-core` sibling at the pinned
+version, and rust-fs-core's `family-check` (run in CI) refuses a copy of either.
 
 ## Fuzzing: two tiers, one corpus
 
@@ -285,7 +283,7 @@ be added without editing branch protection.
 
 `chore check:ci-gate` holds both halves of that mechanically — every job in
 `ci.yml` must appear in `ci-ok`'s `needs:`, and `.github-guard` must require
-`ci-ok` and nothing else. The task runs `scripts/core.sh ci-gate` and nothing else,
+`ci-ok` and nothing else. The task runs `../rust-fs-core/scripts/ci-gate.sh` and nothing else,
 so the script is what can be tested, reviewed and run without `chore` at all.
 It replaced `tests/ci_aggregate_gate.rs`: that parsed a YAML file and compared
 strings, exercising nothing this crate ships, and as a `cargo test` it counted
