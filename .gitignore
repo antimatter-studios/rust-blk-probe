@@ -10,7 +10,7 @@
 /dist/
 
 # tier logs and the run's private copy of rust-fs-core's output-budget.sh.
-# scripts/tier.sh writes tmp/logs/<tier>.log here and CI uploads the
+# rust-fs-core's tier.sh writes tmp/logs/<tier>.log here and CI uploads the
 # directory as an artifact; nothing in it is committed.
 /tmp/
 

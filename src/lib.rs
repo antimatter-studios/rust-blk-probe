@@ -49,7 +49,7 @@
 //!         "start": 1048576,
 //!         "length": 268435456,              // what the table claims
 //!         "available_length": 268435456,    // how much of it the device holds
-//!         "issues": 0,                      // am-partitions PARTITIONS_ENTRY_* bits; 0 = none
+//!         "issues": 0,                      // rust-disk-partitions PARTITIONS_ENTRY_* bits; 0 = none
 //!         "fs_kind": "ext2"|"ext3"|"ext4"|"ntfs"|"fat32"|"fat16"|"exfat"|"hfs_plus"|"apfs"|"linux_swap"|"iso9660"|"squashfs"|"xfs"|"btrfs"|"erofs"|"unknown"|"error",
 //!         "fs_kind_error": "read failed: ..", // only when fs_kind is "error"
 //!         "type_byte": 131,                 // MBR partition type byte (0 for GPT)
@@ -63,15 +63,15 @@
 use std::ffi::{CStr, CString};
 use std::ptr;
 
+use disk_partitions::capi::{
+    partitions_count, partitions_get, partitions_list_free, partitions_probe, partitions_sniff,
+    partitions_sniff_device, partitions_table_kind, FsKindCode, PartitionInfo, PartitionList,
+    TableKindCode,
+};
 use fs_core::ffi::{
     fs_core_device_close, fs_core_device_from_callbacks, fs_core_device_read_at,
     fs_core_device_size_bytes, fs_core_file_open, fs_core_last_error_message, FsCoreCallbackCfg,
     FsCoreDevice, FsCoreErrorCode,
-};
-use partitions::capi::{
-    partitions_count, partitions_get, partitions_list_free, partitions_probe, partitions_sniff,
-    partitions_sniff_device, partitions_table_kind, FsKindCode, PartitionInfo, PartitionList,
-    TableKindCode,
 };
 
 // Force the container-reader rlibs to be linked. We only call into them
@@ -81,17 +81,17 @@ use partitions::capi::{
 // in Rust source. The `use ... as _;` keeps the rlib in the link line
 // so the `#[no_mangle]` symbols resolve.
 #[allow(unused_imports)]
-use qcow2 as _;
+use img_qcow2 as _;
 #[allow(unused_imports)]
-use vhd as _;
+use img_vhd as _;
 #[allow(unused_imports)]
-use vhdx as _;
+use img_vhdx as _;
 #[allow(unused_imports)]
-use vmdk as _;
+use img_vmdk as _;
 
 pub mod superblock;
 
-/// The exact text `partitions::Error::NoPartitionTable` renders. See
+/// The exact text `disk_partitions::Error::NoPartitionTable` renders. See
 /// [`classify_probe`] for why matching on a message, rather than on a
 /// return code, is the only option available here.
 pub const NO_PARTITION_TABLE_MESSAGE: &str = "no GPT or MBR signature found";
@@ -339,7 +339,7 @@ pub fn last_error() -> String {
 }
 
 fn fs_kind_label(code: i32) -> &'static str {
-    // Mirror the partitions::FsKindCode enum.
+    // Mirror the disk_partitions::FsKindCode enum.
     match code {
         x if x == FsKindCode::Ext2 as i32 => "ext2",
         x if x == FsKindCode::Ext3 as i32 => "ext3",
@@ -381,14 +381,14 @@ enum ProbeOutcome {
 /// the partition table".
 ///
 /// The return code alone cannot do it. `partitions_probe` lifts every
-/// `partitions::Error` — a missing signature, a GPT CRC mismatch, a short
+/// `disk_partitions::Error` — a missing signature, a GPT CRC mismatch, a short
 /// read — through `fs_core::Error::Custom`, so a corrupt table and an
 /// unpartitioned ext4 image arrive here as the same `FsCoreErrorCode`. The
 /// only thing that crosses the boundary still carrying the distinction is
 /// the last-error text, so that is what this matches on.
 ///
 /// That makes this function a coupling to a sibling crate's error *string*,
-/// which is worth saying out loud: if `partitions::Error::NoPartitionTable`
+/// which is worth saying out loud: if `disk_partitions::Error::NoPartitionTable`
 /// is ever reworded, every unpartitioned image starts exiting 3. The
 /// alternative — folding both cases into exit 0, which is what this code
 /// used to do — is worse, because it is wrong silently rather than loudly.
@@ -443,7 +443,7 @@ fn sniff_outcome(code: i32, detail: impl FnOnce() -> String) -> Result<&'static 
     }
 }
 
-/// Finish a sniff `am-partitions` answered: where it recognised nothing, ask
+/// Finish a sniff `rust-disk-partitions` answered: where it recognised nothing, ask
 /// [`superblock::identify`] about the `available` bytes at `start`.
 ///
 /// An answer it gave -- including a failure -- is passed through untouched,
@@ -837,7 +837,7 @@ pub unsafe fn probe_device(
         // ZEROED, NOT A STRUCT LITERAL. `PartitionInfo` is a `repr(C)`
         // out-parameter that `partitions_get` overwrites in full, so its
         // starting value carries no meaning -- but a literal has to name
-        // every field, and `am-partitions` adds fields between releases
+        // every field, and `rust-disk-partitions` adds fields between releases
         // (0.5.0 added `slot`, `issues` and `available_length`). A literal
         // failed to compile against whichever side it was not written for
         // (#14), and would again at the next field. All-zero is a valid

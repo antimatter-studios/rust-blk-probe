@@ -41,27 +41,27 @@ path = "src/main.rs"
 # ../rust-*; the requirement is consulted when publishing and nowhere else.
 # The lock beside this file is resolved against the tagged siblings, and
 # src/lib.rs zero-initialises `PartitionInfo` rather than naming its fields,
-# so a field added on am-partitions' `main` between releases does not stop
-# this building. am-partitions moved to 0.5.0 in lockstep with the release
+# so a field added on rust-disk-partitions' `main` between releases does not stop
+# this building. rust-disk-partitions moved to 0.5.0 in lockstep with the release
 # that added `slot`, `issues` and `available_length` (#28).
 #
 # The refs CI checks out are in scripts/clone-siblings.sh, and
 # tests/scripts/test-sibling-pins-agree.sh fails if this list and that one
 # stop naming the same six crates.
 #
-# am-fs-core's `cli` FEATURE IS ON FOR ONE THING: `blk.probe --version`
+# rust-fs-core's `cli` FEATURE IS ON FOR ONE THING: `blk.probe --version`
 # prints the family's identifying line through `fs_core::cli::version`, the
 # one place that line is written, rather than a copy of its format here
 # (#47). The rest of that module -- multi-call dispatch, JSON errors on
 # stderr, exit 2 for a usage error -- is not used, because this tool's exit
 # codes are a published contract of their own.
 [dependencies]
-am-fs-core = { path = "../rust-fs-core", version = "0.2.18", features = ["cli"] }
-am-img-qcow2 = { path = "../rust-img-qcow2", version = "0.4.5" }
-am-img-vhd = { path = "../rust-img-vhd", version = "0.4.0" }
-am-img-vhdx = { path = "../rust-img-vhdx", version = "0.4.0" }
-am-img-vmdk = { path = "../rust-img-vmdk", version = "0.3.5" }
-am-partitions = { path = "../rust-partitions", version = "0.5.0" }
+rust-fs-core = { path = "../rust-fs-core", version = "0.3.3", features = ["cli"] }
+rust-img-qcow2 = { path = "../rust-img-qcow2", version = "0.6.0" }
+rust-img-vhd = { path = "../rust-img-vhd", version = "0.6.0" }
+rust-img-vhdx = { path = "../rust-img-vhdx", version = "0.6.0" }
+rust-img-vmdk = { path = "../rust-img-vmdk", version = "0.5.0" }
+rust-disk-partitions = { path = "../rust-disk-partitions", version = "0.6.0" }
 
 [profile.release]
 opt-level = 3

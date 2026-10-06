@@ -9,54 +9,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
-name = "am-fs-core"
-version = "0.2.18"
-dependencies = [
- "clap",
- "clap_complete",
- "clap_mangen",
-]
-
-[[package]]
-name = "am-img-qcow2"
-version = "0.4.5"
-dependencies = [
- "am-fs-core",
- "flate2",
- "ruzstd",
-]
-
-[[package]]
-name = "am-img-vhd"
-version = "0.4.0"
-dependencies = [
- "am-fs-core",
-]
-
-[[package]]
-name = "am-img-vhdx"
-version = "0.4.0"
-dependencies = [
- "am-fs-core",
- "crc32c",
-]
-
-[[package]]
-name = "am-img-vmdk"
-version = "0.3.5"
-dependencies = [
- "am-fs-core",
-]
-
-[[package]]
-name = "am-partitions"
-version = "0.5.0"
-dependencies = [
- "am-fs-core",
- "crc32fast",
-]
-
-[[package]]
 name = "anstyle"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -161,12 +113,61 @@ checksum = "323c417e1d9665a65b263ec744ba09030cfb277e9daa0b018a4ab62e57bc8189"
 name = "rust-blk-probe"
 version = "0.1.2"
 dependencies = [
- "am-fs-core",
- "am-img-qcow2",
- "am-img-vhd",
- "am-img-vhdx",
- "am-img-vmdk",
- "am-partitions",
+ "rust-disk-partitions",
+ "rust-fs-core",
+ "rust-img-qcow2",
+ "rust-img-vhd",
+ "rust-img-vhdx",
+ "rust-img-vmdk",
+]
+
+[[package]]
+name = "rust-disk-partitions"
+version = "0.6.0"
+dependencies = [
+ "crc32fast",
+ "rust-fs-core",
+]
+
+[[package]]
+name = "rust-fs-core"
+version = "0.3.3"
+dependencies = [
+ "clap",
+ "clap_complete",
+ "clap_mangen",
+]
+
+[[package]]
+name = "rust-img-qcow2"
+version = "0.6.0"
+dependencies = [
+ "flate2",
+ "rust-fs-core",
+ "ruzstd",
+]
+
+[[package]]
+name = "rust-img-vhd"
+version = "0.6.0"
+dependencies = [
+ "rust-fs-core",
+]
+
+[[package]]
+name = "rust-img-vhdx"
+version = "0.6.0"
+dependencies = [
+ "crc32c",
+ "rust-fs-core",
+]
+
+[[package]]
+name = "rust-img-vmdk"
+version = "0.5.0"
+dependencies = [
+ "flate2",
+ "rust-fs-core",
 ]
 
 [[package]]

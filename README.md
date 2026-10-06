@@ -5,7 +5,7 @@ container), walk its partition table, and emit JSON describing what is
 inside.
 
 **The interface is a command-line binary.** Every sibling in the family
-(`rust-fs-*`, `rust-img-*`, `rust-partitions`) hands back a static archive and
+(`rust-fs-*`, `rust-img-*`, `rust-disk-partitions`) hands back a static archive and
 headers; this one hands back one executable that a host application runs as a
 child process. There is no `staticlib` task here and nothing links this crate.
 
@@ -99,7 +99,7 @@ that ended short, a table left stale after a shrink), and 0 for one starting
 past the end. Size a buffer with `available_length`.
 
 `issues` is a bit set of the table rules the entry breaks, as
-`am-partitions`' `PARTITIONS_ENTRY_*` bits: 1 starts before the first usable
+`rust-disk-partitions`' `PARTITIONS_ENTRY_*` bits: 1 starts before the first usable
 LBA, 2 ends past the last usable LBA, 4 overlaps another entry. 0 means none.
 A non-zero value is reported, not refused.
 
@@ -169,12 +169,12 @@ repository's parent directory:
 
 | crate | repository |
 |---|---|
-| `am-fs-core` | `rust-fs-core` |
-| `am-img-qcow2` | `rust-img-qcow2` |
-| `am-img-vhd` | `rust-img-vhd` |
-| `am-img-vhdx` | `rust-img-vhdx` |
-| `am-img-vmdk` | `rust-img-vmdk` |
-| `am-partitions` | `rust-partitions` |
+| `rust-fs-core` | `rust-fs-core` |
+| `rust-img-qcow2` | `rust-img-qcow2` |
+| `rust-img-vhd` | `rust-img-vhd` |
+| `rust-img-vhdx` | `rust-img-vhdx` |
+| `rust-img-vmdk` | `rust-img-vmdk` |
+| `rust-disk-partitions` | `rust-disk-partitions` |
 
 Check them out beside this one.
 

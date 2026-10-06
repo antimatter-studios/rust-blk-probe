@@ -14,7 +14,7 @@
 # sibling's `main` advancing cannot change what this crate was tested against,
 # and Cargo.lock is resolved against exactly these trees -- `cargo build
 # --locked` refuses a lock resolved against a sibling's `main` whenever that
-# `main` has added a dependency its tag lacks, as am-img-vmdk's has.
+# `main` has added a dependency its tag lacks, as rust-img-vmdk's has.
 #
 # Usage: scripts/clone-siblings.sh [destination-parent]
 #   The default parent is the directory holding this checkout, which is where
@@ -26,12 +26,12 @@ PARENT="${1:-$(dirname "$HERE")}"
 
 # name                ref
 SIBLINGS=(
-    "rust-fs-core     v0.2.18"
-    "rust-img-qcow2   v0.4.5"
-    "rust-img-vhd     v0.4.0"
-    "rust-img-vhdx    v0.4.0"
-    "rust-img-vmdk    v0.3.5"
-    "rust-partitions  v0.5.0"
+    "rust-fs-core          v0.3.3"
+    "rust-img-qcow2        v0.6.0"
+    "rust-img-vhd          v0.6.0"
+    "rust-img-vhdx         v0.6.0"
+    "rust-img-vmdk         v0.5.0"
+    "rust-disk-partitions  v0.6.0"
 )
 
 # `--pins` prints the list and clones nothing, so
