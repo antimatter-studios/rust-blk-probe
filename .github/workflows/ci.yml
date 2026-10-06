@@ -147,12 +147,6 @@ jobs:
           components: rustfmt
       - name: fmt
         run: cargo fmt --check
-      - name: the agent guide carries the shared block
-        # AGENTS.md embeds agent-core, byte-identical with every sibling. This
-        # runs the script directly rather than through `chore lint`, because
-        # CI here does not install chore -- a guard wired only into a task
-        # nothing runs is a guard that reports protection it is not providing.
-        run: bash ../rust-fs-core/scripts/agents-core-check.sh
       # rust-fs-core OWNS output-budget.sh, and test-tier-wrapper.sh drives
       # tier.sh against the real one rather than a stand-in, so this job
       # needs that sibling beside it too -- at the same pin the test matrix
@@ -162,7 +156,13 @@ jobs:
       - name: clone the sibling crates
         shell: bash
         run: bash scripts/clone-siblings.sh
-      # ci-gate is rust-fs-core's and core.sh finds it through cargo metadata,
+      - name: the agent guide carries the shared block
+        # AGENTS.md embeds agent-core, byte-identical with every sibling. This
+        # runs the script directly rather than through `chore lint`, because
+        # CI here does not install chore -- a guard wired only into a task
+        # nothing runs is a guard that reports protection it is not providing.
+        run: bash ../rust-fs-core/scripts/agents-core-check.sh
+      # ci-gate is rust-fs-core's and runs in place from the sibling,
       # so it can only run once the siblings are beside this checkout.
       - name: the one required check stands for every job
         run: bash ../rust-fs-core/scripts/ci-gate.sh
