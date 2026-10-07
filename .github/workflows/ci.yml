@@ -74,8 +74,17 @@ jobs:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
 
+      # BOTH PROFILES ARE COMPILED HERE, OUTSIDE THE BUDGETED TIERS. A cold
+      # cache (any Cargo.lock change misses it) prints one `Compiling` line per
+      # crate, and inside a tier those lines count against its budget: the
+      # release tier printed 130 lines against 125 on ubuntu-24.04-arm in run
+      # 37481317710, every test passing (#55). Built here first, each tier
+      # prints its tests and the few lines cargo needs to say it is fresh.
       - name: build
         run: cargo build --locked --all-targets
+
+      - name: build (release)
+        run: cargo build --locked --release --all-targets
 
       # THE TIERS RUN THROUGH ../rust-fs-core/scripts/tier.sh, WITH THE NUMBERS chores.yml
       # HAS. The workflow cannot read chores.yml without installing chore on
