@@ -8,6 +8,9 @@ never does.
 
 ### Changed
 
+- **CI compiles the release profile before the release tier runs.** A cold
+  cache no longer puts cargo's `Compiling` lines inside the release tier's
+  output budget (#55).
 - **The family's scripts run in place from rust-fs-core, and this repository
   keeps no copy.** `scripts/core.sh` and `scripts/tier.sh` are gone; CI and
   chores run `../rust-fs-core/scripts/NAME.sh` at the pinned version
