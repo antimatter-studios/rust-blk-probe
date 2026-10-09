@@ -10,6 +10,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The merge queue's run: main plus the queued pull requests, the run that
+  # decides whether they land. The queue reads ci-ok only from a workflow
+  # that triggers here.
+  merge_group:
   # release.yml calls this whole workflow as its gate, so a tag is held to
   # exactly what a pull request is held to -- one definition, not two copies
   # that drift.
@@ -26,8 +30,64 @@ permissions:
   contents: read
 
 jobs:
+  # Does this change need the full pipeline? rust-fs-core's
+  # scripts/code-changed.sh reads the change's paths and says false only when
+  # every one is documentation. The change is the pull request's diff, the
+  # merge queue group's (its base_sha to its head_sha: what the queue is about
+  # to land), or a push to main's (before to after); a tag or a push it cannot
+  # diff runs everything. The three-runner test matrix and the per-platform
+  # packages run only when the answer is true, and ci-ok accepts their skip
+  # when, and only when, it is false.
+  changes:
+    name: changes (does this need the full pipeline?)
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.c.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: the siblings at their pins, for code-changed.sh
+        run: bash scripts/clone-siblings.sh
+      - name: Classify the change
+        id: c
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          MQ_BASE: ${{ github.event.merge_group.base_sha }}
+          MQ_HEAD: ${{ github.event.merge_group.head_sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.event.after }}
+        run: |
+          set -euo pipefail
+          range=
+          case "$EVENT" in
+            pull_request) range="$PR_BASE...$PR_HEAD" ;;
+            merge_group) range="$MQ_BASE...$MQ_HEAD" ;;
+            push)
+              case "$REF" in
+                refs/heads/*)
+                  if [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != 0000000000000000000000000000000000000000 ] &&
+                    git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
+                    range="$PUSH_BEFORE...$PUSH_AFTER"
+                  fi ;;
+              esac ;;
+          esac
+          if [ -n "$range" ]; then
+            git diff --name-only "$range" | tee changed.txt
+            code="$(bash ../rust-fs-core/scripts/code-changed.sh < changed.txt)"
+          else
+            code=true
+          fi
+          echo "code=$code ($EVENT${range:+ $range})"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
   test:
     name: test / ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -201,6 +261,8 @@ jobs:
   # that drops a platform from these legs or from release.yml's (#45).
   package:
     name: package / ${{ matrix.platform }}
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -264,12 +326,15 @@ jobs:
     # it a cancelled or skipped dependency leaves this job skipped too, and a
     # skipped required check is indistinguishable from an absent one.
     if: always()
-    needs: [test, fmt, package]
+    needs: [changes, test, fmt, package]
     runs-on: ubuntu-latest
     steps:
       - name: every gating job must have concluded success
         env:
           NEEDS: ${{ toJSON(needs) }}
+          # false only for a change to documentation alone: then, and only
+          # then, a skipped job is not a failed one.
+          CODE: ${{ needs.changes.outputs.code }}
         run: |
           set -euo pipefail
           echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
@@ -277,7 +342,8 @@ jobs:
           # not a job that passed: `test` reaches for six sibling clones and
           # a toolchain, and every way that can go wrong ends in a result
           # this line has to refuse rather than wave through.
-          bad="$(echo "$NEEDS" | jq -r '[to_entries[] | select(.value.result != "success") | .key] | join(", ")')"
+          echo "code changed: $CODE"
+          bad="$(echo "$NEEDS" | jq -r --arg code "$CODE" '[to_entries[] | select(.value.result != "success" and ($code != "false" or .value.result != "skipped")) | .key] | join(", ")')"
           if [ -n "$bad" ]; then
             echo "::error::not green: $bad (failed, cancelled or skipped)"
             exit 1

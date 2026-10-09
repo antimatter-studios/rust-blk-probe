@@ -56,7 +56,7 @@ path = "src/main.rs"
 # stderr, exit 2 for a usage error -- is not used, because this tool's exit
 # codes are a published contract of their own.
 [dependencies]
-rust-fs-core = { path = "../rust-fs-core", version = "0.3.3", features = ["cli"] }
+rust-fs-core = { path = "../rust-fs-core", version = "0.3.8", features = ["cli"] }
 rust-img-qcow2 = { path = "../rust-img-qcow2", version = "0.6.0" }
 rust-img-vhd = { path = "../rust-img-vhd", version = "0.6.0" }
 rust-img-vhdx = { path = "../rust-img-vhdx", version = "0.6.0" }
