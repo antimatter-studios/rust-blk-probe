@@ -231,6 +231,10 @@ jobs:
         # CI here does not install chore -- a guard wired only into a task
         # nothing runs is a guard that reports protection it is not providing.
         run: bash ../rust-fs-core/scripts/agents-core-check.sh
+      - name: unreleased changelog entries are fragments
+        # agent-core v6: a pull request adds changelog.d/<branch>.md rather
+        # than editing CHANGELOG.md. Run directly, like the check above.
+        run: bash ../rust-fs-core/scripts/changelog-check.sh
       # ci-gate is rust-fs-core's and runs in place from the sibling,
       # so it can only run once the siblings are beside this checkout.
       - name: the one required check stands for every job
