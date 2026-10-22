@@ -9,6 +9,10 @@ inside.
 headers; this one hands back one executable that a host application runs as a
 child process. There is no `staticlib` task here and nothing links this crate.
 
+## New home
+
+Development is moving to [`rust-disk-partitions`](https://github.com/antimatter-studios/rust-disk-partitions), where `blk.probe` is being added as the `crates/blk-probe` workspace member (see [PR #194](https://github.com/antimatter-studios/rust-disk-partitions/pull/194)). Once that migration lands, new code and releases belong there, published from `blk-probe-v*` tags. This repository remains available for its existing v0.1.x releases until its consumer has switched to the new home.
+
 The probe itself is a **library beside it**, and that is a testing decision
 rather than a second interface. `blk_probe::probe_path` is what the binary
 runs and `blk_probe::probe_bytes` is the same probe over an image already in
