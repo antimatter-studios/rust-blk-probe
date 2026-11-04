@@ -1,5 +1,25 @@
 # rust-blk-probe
 
+**This repository has moved.** The code now lives in
+[`rust-disk-partitions`](https://github.com/antimatter-studios/rust-disk-partitions)
+as the workspace member
+[`crates/blk-probe`](https://github.com/antimatter-studios/rust-disk-partitions/tree/main/crates/blk-probe)
+([rust-disk-partitions#150](https://github.com/antimatter-studios/rust-disk-partitions/issues/150)).
+Open issues and pull requests there.
+
+New releases are cut there on `blk-probe-v<version>` tags by
+[`release-blk-probe.yml`](https://github.com/antimatter-studios/rust-disk-partitions/blob/main/.github/workflows/release-blk-probe.yml),
+with the same tarball names as the releases here. Verify one with:
+
+```sh
+gh attestation verify rust-blk-probe-<version>-<platform>.tar.gz \
+  --repo antimatter-studios/rust-disk-partitions \
+  --signer-workflow antimatter-studios/rust-disk-partitions/.github/workflows/release-blk-probe.yml
+```
+
+The tags and releases here, up to v0.1.2, stay in place and stay verifiable.
+What follows describes the code as it was when it moved.
+
 `blk.probe` — open a disk image (raw, or a qcow2 / VHD / VHDX / VMDK
 container), walk its partition table, and emit JSON describing what is
 inside.
@@ -8,10 +28,6 @@ inside.
 (`rust-fs-*`, `rust-img-*`, `rust-disk-partitions`) hands back a static archive and
 headers; this one hands back one executable that a host application runs as a
 child process. There is no `staticlib` task here and nothing links this crate.
-
-## New home
-
-Development is moving to [`rust-disk-partitions`](https://github.com/antimatter-studios/rust-disk-partitions), where `blk.probe` is being added as the `crates/blk-probe` workspace member (see [PR #194](https://github.com/antimatter-studios/rust-disk-partitions/pull/194)). Once that migration lands, new code and releases belong there, published from `blk-probe-v*` tags. This repository remains available for its existing v0.1.x releases until its consumer has switched to the new home.
 
 The probe itself is a **library beside it**, and that is a testing decision
 rather than a second interface. `blk_probe::probe_path` is what the binary
